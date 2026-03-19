@@ -31,7 +31,7 @@ public class RoomMember {
     @JoinColumn(name = "user_id", nullable = false)
     private AppUser user;
 
-    @Enumerated
+    @Enumerated(EnumType.STRING)
     private RoomRole room_role;
 
     @Column(name = "joined_at")

@@ -35,7 +35,7 @@ public class Room {
     @OneToMany(mappedBy = "room")
     private List<Message> messages;
 
-    @Enumerated
+    @Enumerated(EnumType.STRING)
     private RoomType type;
 
     @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.PERSIST)
