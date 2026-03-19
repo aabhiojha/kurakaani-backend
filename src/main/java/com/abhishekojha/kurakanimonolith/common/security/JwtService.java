@@ -1,6 +1,6 @@
-package com.abhishekojha.kurakanimonolith.security;
+package com.abhishekojha.kurakanimonolith.common.security;
 
-import com.abhishekojha.kurakanimonolith.user.AppUser;
+import com.abhishekojha.kurakanimonolith.modules.user.AppUser;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jws;
 import io.jsonwebtoken.JwtException;
@@ -13,10 +13,8 @@ import java.time.Instant;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 import javax.crypto.SecretKey;
 
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 @Component

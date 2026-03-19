@@ -1,4 +1,4 @@
-package com.abhishekojha.kurakanimonolith.security;
+package com.abhishekojha.kurakanimonolith.common.security;
 
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;

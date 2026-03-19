@@ -1,4 +1,4 @@
-package com.abhishekojha.kurakanimonolith.user;
+package com.abhishekojha.kurakanimonolith.modules.user;
 
 import java.util.Map;
 import org.springframework.security.core.Authentication;

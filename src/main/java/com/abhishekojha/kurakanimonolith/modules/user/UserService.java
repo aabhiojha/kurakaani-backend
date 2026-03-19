@@ -1,4 +1,4 @@
-package com.abhishekojha.kurakanimonolith.user;
+package com.abhishekojha.kurakanimonolith.modules.user;
 
 import java.util.Set;
 import org.springframework.stereotype.Service;

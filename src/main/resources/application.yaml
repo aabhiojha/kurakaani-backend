@@ -29,7 +29,10 @@ spring:
               - profile
               - email
             redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
-
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    
 logging:
   level:
     org.springframework.security: INFO

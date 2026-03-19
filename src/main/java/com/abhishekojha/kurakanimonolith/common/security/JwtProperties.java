@@ -1,4 +1,4 @@
-package com.abhishekojha.kurakanimonolith.security;
+package com.abhishekojha.kurakanimonolith.common.security;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 

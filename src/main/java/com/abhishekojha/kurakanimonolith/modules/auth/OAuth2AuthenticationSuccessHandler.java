@@ -1,9 +1,9 @@
-package com.abhishekojha.kurakanimonolith.auth;
+package com.abhishekojha.kurakanimonolith.modules.auth;
 
-import com.abhishekojha.kurakanimonolith.security.HttpCookieOAuth2AuthorizationRequestRepository;
-import com.abhishekojha.kurakanimonolith.security.JwtService;
-import com.abhishekojha.kurakanimonolith.user.AppUser;
-import com.abhishekojha.kurakanimonolith.user.UserService;
+import com.abhishekojha.kurakanimonolith.common.security.HttpCookieOAuth2AuthorizationRequestRepository;
+import com.abhishekojha.kurakanimonolith.common.security.JwtService;
+import com.abhishekojha.kurakanimonolith.modules.user.AppUser;
+import com.abhishekojha.kurakanimonolith.modules.user.UserService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

@@ -1,0 +1,40 @@
+package com.abhishekojha.kurakanimonolith.modules.room_members.model;
+
+import com.abhishekojha.kurakanimonolith.modules.room.model.Room;
+import com.abhishekojha.kurakanimonolith.modules.user.AppUser;
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import org.hibernate.annotations.CreationTimestamp;
+
+import java.time.LocalDateTime;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Entity
+@Table(name = "room_members")
+public class RoomMember {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "room_member_id")
+    private Long roomMemberId;
+
+    @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.PERSIST)
+    @JoinColumn(name = "room_id", nullable = false)
+    private Room room;
+
+    @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.PERSIST)
+    @JoinColumn(name = "user_id", nullable = false)
+    private AppUser user;
+
+    @Enumerated
+    private RoomRole room_role;
+
+    @Column(name = "joined_at")
+    private LocalDateTime joinedAt;
+
+}

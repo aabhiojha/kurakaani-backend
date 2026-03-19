@@ -1,4 +1,4 @@
-package com.abhishekojha.kurakanimonolith.auth;
+package com.abhishekojha.kurakanimonolith.modules.auth;
 
 import java.util.Map;
 import org.springframework.web.bind.annotation.GetMapping;
