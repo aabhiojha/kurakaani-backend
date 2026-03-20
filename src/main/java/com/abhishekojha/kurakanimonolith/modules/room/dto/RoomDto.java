@@ -1,10 +1,8 @@
 package com.abhishekojha.kurakanimonolith.modules.room.dto;
 
 import com.abhishekojha.kurakanimonolith.modules.message.dto.MessageDto;
-import com.abhishekojha.kurakanimonolith.modules.message.model.Message;
 import com.abhishekojha.kurakanimonolith.modules.room.model.RoomType;
 import com.abhishekojha.kurakanimonolith.modules.room_member.model.RoomMember;
-import com.abhishekojha.kurakanimonolith.modules.user.AppUser;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Getter;

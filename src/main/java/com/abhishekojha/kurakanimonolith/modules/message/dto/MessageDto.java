@@ -1,7 +1,5 @@
 package com.abhishekojha.kurakanimonolith.modules.message.dto;
 
-import com.abhishekojha.kurakanimonolith.modules.room.model.Room;
-import com.abhishekojha.kurakanimonolith.modules.user.AppUser;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;

@@ -10,7 +10,6 @@ import lombok.Setter;
 @Getter
 @Setter
 public class CreateRoomRequestDto {
-    @NotNull
     @NotBlank
     @Size(max = 100)
     private String name;

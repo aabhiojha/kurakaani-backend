@@ -1,8 +1,6 @@
 package com.abhishekojha.kurakanimonolith.modules.room.mapper;
 
-import com.abhishekojha.kurakanimonolith.modules.message.dto.MessageDto;
 import com.abhishekojha.kurakanimonolith.modules.message.mapper.MessageMapper;
-import com.abhishekojha.kurakanimonolith.modules.message.model.Message;
 import com.abhishekojha.kurakanimonolith.modules.room.dto.RoomDto;
 import com.abhishekojha.kurakanimonolith.modules.room.model.Room;
 import com.abhishekojha.kurakanimonolith.modules.user.AppUser;
