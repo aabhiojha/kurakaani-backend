@@ -41,11 +41,11 @@ public class Message {
     @Column(name = "is_deleted",columnDefinition = "BOOLEAN DEFAULT FALSE")
     private Boolean isDeleted;
 
-    @JoinColumn(name = "created_at", nullable = false)
+    @Column(name = "created_at", nullable = false)
     @CreationTimestamp
     private LocalDateTime createdAt;
 
-    @JoinColumn(name = "updated_at", nullable = false)
+    @Column(name = "updated_at", nullable = false)
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 

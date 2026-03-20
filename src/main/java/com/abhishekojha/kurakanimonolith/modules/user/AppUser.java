@@ -42,7 +42,7 @@ public class AppUser {
     @Column(name = "role", nullable = false)
     private Set<Role> roles = new HashSet<>();
 
-    @OneToMany(mappedBy = "created_by")
+    @OneToMany(mappedBy = "createdBy")
     private List<Room> rooms;
 
     @OneToMany(mappedBy = "sender")

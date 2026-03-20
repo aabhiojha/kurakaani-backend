@@ -43,11 +43,11 @@ public class Room {
     private AppUser createdBy;
 
     @CreationTimestamp
-    @JoinColumn(name = "created_at", nullable = false)
+    @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
     @UpdateTimestamp
-    @JoinColumn(name = "updated_at", nullable = false)
+    @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
 }
