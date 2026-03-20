@@ -1,4 +1,4 @@
-package com.abhishekojha.kurakanimonolith.modules.room_members.model;
+package com.abhishekojha.kurakanimonolith.modules.room_member.model;
 
 import com.abhishekojha.kurakanimonolith.modules.room.model.Room;
 import com.abhishekojha.kurakanimonolith.modules.user.AppUser;
@@ -7,7 +7,6 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 
@@ -32,7 +31,8 @@ public class RoomMember {
     private AppUser user;
 
     @Enumerated(EnumType.STRING)
-    private RoomRole room_role;
+    @Column(name = "room_role")
+    private RoomRole roomRole;
 
     @Column(name = "joined_at")
     private LocalDateTime joinedAt;

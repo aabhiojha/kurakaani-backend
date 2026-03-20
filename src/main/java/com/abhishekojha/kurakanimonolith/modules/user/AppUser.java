@@ -2,7 +2,7 @@ package com.abhishekojha.kurakanimonolith.modules.user;
 
 import com.abhishekojha.kurakanimonolith.modules.message.model.Message;
 import com.abhishekojha.kurakanimonolith.modules.room.model.Room;
-import com.abhishekojha.kurakanimonolith.modules.room_members.model.RoomMember;
+import com.abhishekojha.kurakanimonolith.modules.room_member.model.RoomMember;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -33,7 +33,8 @@ public class AppUser {
     private String name;
 
     // last seen at
-    private LocalDateTime last_seen_at;
+    @Column(name = "last_seen_at")
+    private LocalDateTime lastSeenAt;
 
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"))

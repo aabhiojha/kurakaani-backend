@@ -8,6 +8,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.DynamicInsert;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
@@ -18,6 +19,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Entity
 @Table(name = "messages")
+@DynamicInsert
 public class Message {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -33,14 +35,18 @@ public class Message {
 
     private String content;
 
-    private Boolean is_edited;
+    @Column(name = "is_edited",columnDefinition = "BOOLEAN DEFAULT FALSE")
+    private Boolean isEdited;
 
-    private Boolean is_deleted;
+    @Column(name = "is_deleted",columnDefinition = "BOOLEAN DEFAULT FALSE")
+    private Boolean isDeleted;
 
+    @JoinColumn(name = "created_at", nullable = false)
     @CreationTimestamp
-    private LocalDateTime created_at;
+    private LocalDateTime createdAt;
 
+    @JoinColumn(name = "updated_at", nullable = false)
     @UpdateTimestamp
-    private LocalDateTime updated_at;
+    private LocalDateTime updatedAt;
 
 }
