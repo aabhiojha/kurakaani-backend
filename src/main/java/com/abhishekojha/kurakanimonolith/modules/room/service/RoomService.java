@@ -8,5 +8,5 @@ import java.util.List;
 public interface RoomService {
     RoomDto createRoom(CreateRoomRequestDto createRoomRequestDto);
 
-    List<RoomDto> getRoom()
+    List<RoomDto> getRooms();
 }
