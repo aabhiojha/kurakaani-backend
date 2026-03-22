@@ -7,10 +7,13 @@ import com.abhishekojha.kurakanimonolith.common.exception.exceptions.Unauthorize
 import com.abhishekojha.kurakanimonolith.common.security.SecurityUtils;
 import com.abhishekojha.kurakanimonolith.modules.room.dto.AddUsersToRoomDto;
 import com.abhishekojha.kurakanimonolith.modules.room.dto.CreateRoomRequestDto;
+import com.abhishekojha.kurakanimonolith.modules.room.dto.RemoveMembersDto;
 import com.abhishekojha.kurakanimonolith.modules.room.dto.RoomDto;
 import com.abhishekojha.kurakanimonolith.modules.room.mapper.RoomMapper;
 import com.abhishekojha.kurakanimonolith.modules.room.model.Room;
 import com.abhishekojha.kurakanimonolith.modules.room.repository.RoomRepository;
+import com.abhishekojha.kurakanimonolith.modules.room_member.dto.RoomMemberDto;
+import com.abhishekojha.kurakanimonolith.modules.room_member.mapper.RoomMemberMapper;
 import com.abhishekojha.kurakanimonolith.modules.room_member.model.RoomMember;
 import com.abhishekojha.kurakanimonolith.modules.room_member.model.RoomRole;
 import com.abhishekojha.kurakanimonolith.modules.room_member.repository.RoomMemberRepository;
@@ -23,6 +26,8 @@ import org.springframework.security.core.userdetails.User;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import javax.sql.DataSource;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -37,35 +42,61 @@ public class RoomServiceImpl implements RoomService {
     private final SecurityUtils securityUtils;
     private final UserRepository userRepository;
     private final RoomMemberRepository roomMemberRepository;
+    private final RoomMemberMapper roomMemberMapper;
+
+    @Override
+    @Transactional
+    public List<RoomMemberDto> getAllMembers(Long roomId) {
+        // get the room first
+        Room room = roomRepository.findById(roomId).orElseThrow(
+                () -> new ResourceNotFoundException("Room not found"));
+
+        return roomMemberMapper.toDto(room.getMembers());
+    }
 
     @PreAuthorize("hasRole('USER')")
     @Override
     @Transactional
     public RoomDto createRoom(CreateRoomRequestDto createRoomRequestDto) {
         // user
-        AppUser requestUser = securityUtils.getRequestUser();
-        if (requestUser == null) {
+        AppUser user = securityUtils.getRequestUser();
+        if (user == null) {
             throw new UnauthorizedException("The user not authenticated.");
         }
         // check if the room of same name exists already.
-        List<Room> roomList = roomRepository.findByCreatedByAndNameIgnoreCase(requestUser, createRoomRequestDto.getName());
+        List<Room> roomList = roomRepository.findByCreatedByAndNameIgnoreCase(user, createRoomRequestDto.getName());
 
         if (!roomList.isEmpty()) {
             throw new DuplicateResourceException("The room with name '%s' already exists".formatted(createRoomRequestDto.getName()));
         }
 
-        log.info("The request user is retrieved: {}", requestUser.getEmail());
+        log.info("The request user is retrieved: {}", user.getEmail());
 
         // convert the createroomdto into room object
         Room room = new Room();
         room.setName(createRoomRequestDto.getName());
         room.setDescription(createRoomRequestDto.getDescription());
         room.setType(createRoomRequestDto.getType());
-        room.setCreatedBy(requestUser);
+        room.setCreatedBy(user);
+//        room.setMembers();
 
         Room savedRoom = roomRepository.save(room);
         log.info("Room created. id={}, name={}, createdBy={}",
-                savedRoom.getId(), savedRoom.getName(), requestUser.getEmail());
+                savedRoom.getId(), savedRoom.getName(), user.getEmail());
+
+        // gotta create a room member entry of the user as admin
+        RoomMember roomMember = RoomMember.builder()
+                .room(savedRoom)
+                .user(user)
+                .roomRole(RoomRole.ADMIN)
+                .joinedAt(LocalDateTime.now()).build();
+
+        RoomMember adminMember = roomMemberRepository.save(roomMember);
+        log.info("User {} is set as admin of room {}", adminMember.getUser(), room);
+
+//        now attach the member list to savedRoom
+        savedRoom.setMembers(List.of(roomMember));
+
         return roomMapper.toDto(savedRoom);
     }
 
@@ -77,11 +108,11 @@ public class RoomServiceImpl implements RoomService {
 
     @Override
     @Transactional
-    public void addUserToRoom(AddUsersToRoomDto request, Long room_id) {
+    public void addUserToRoom(AddUsersToRoomDto request, Long roomId) {
         List<Long> userIds = request.getUserIds();
 
         // check if the room exists
-        Room room = roomRepository.findById(room_id).orElseThrow(
+        Room room = roomRepository.findById(roomId).orElseThrow(
                 () -> new ResourceNotFoundException("Room not found"));
 
         if (userIds.isEmpty()) {
@@ -106,18 +137,12 @@ public class RoomServiceImpl implements RoomService {
             throw new ResourceNotFoundException("User with id '%s' not found".formatted(missingUserIds));
         }
 
-        // create room member entry
-        for (AppUser user : usersList) {
-            RoomMember member = RoomMember.builder()
-                    .room(room).user(user).roomRole(RoomRole.MEMBER).build();
-
-        }
-
         List<RoomMember> newMembers = usersList.stream()
                 .map(user -> RoomMember.builder()
                         .room(room)
                         .user(user)
                         .roomRole(RoomRole.MEMBER)
+                        .joinedAt(LocalDateTime.now())
                         .build())
                 .toList();
         List<RoomMember> roomMembers = roomMemberRepository.saveAll(newMembers);
@@ -126,7 +151,10 @@ public class RoomServiceImpl implements RoomService {
 
     @Override
     @Transactional
-    public void removeUserFromRoom() {
+    public void removeUserFromRoom(RemoveMembersDto request, Long roomId) {
+        List<Long> deleteIds = request.getMembersId();
+        // check if the users actually exist
+        userRepository.deleteAllById(deleteIds);
 
     }
 
