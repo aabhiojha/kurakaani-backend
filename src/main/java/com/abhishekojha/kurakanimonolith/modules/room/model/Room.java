@@ -4,7 +4,6 @@ import com.abhishekojha.kurakanimonolith.modules.message.model.Message;
 import com.abhishekojha.kurakanimonolith.modules.room_member.model.RoomMember;
 import com.abhishekojha.kurakanimonolith.modules.user.AppUser;
 import jakarta.persistence.*;
-import jakarta.validation.Constraint;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;

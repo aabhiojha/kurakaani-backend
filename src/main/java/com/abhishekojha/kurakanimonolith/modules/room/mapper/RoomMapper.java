@@ -4,7 +4,6 @@ import com.abhishekojha.kurakanimonolith.modules.message.mapper.MessageMapper;
 import com.abhishekojha.kurakanimonolith.modules.room.dto.RoomDto;
 import com.abhishekojha.kurakanimonolith.modules.room.model.Room;
 import com.abhishekojha.kurakanimonolith.modules.room_member.mapper.RoomMemberMapper;
-import com.abhishekojha.kurakanimonolith.modules.room_member.model.RoomMember;
 import com.abhishekojha.kurakanimonolith.modules.user.AppUser;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
