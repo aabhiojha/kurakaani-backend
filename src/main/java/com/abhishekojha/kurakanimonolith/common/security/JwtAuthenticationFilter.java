@@ -11,6 +11,7 @@ import java.util.Collection;
 import java.util.List;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -24,6 +25,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private static final String BEARER_PREFIX = "Bearer ";
@@ -36,10 +38,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             HttpServletResponse response,
             FilterChain filterChain
     ) throws ServletException, IOException {
-        String token = resolveToken(request);
+        log.debug("JWT filter start: method={}, path={}", request.getMethod(), request.getRequestURI());
 
-        if (token != null && jwtService.isTokenValid(token)
-                && SecurityContextHolder.getContext().getAuthentication() == null) {
+        String token = resolveToken(request);
+        Authentication existingAuthentication = SecurityContextHolder.getContext().getAuthentication();
+
+        if (token == null) {
+            log.debug("No bearer token found for path={}", request.getRequestURI());
+        } else if (existingAuthentication != null) {
+            log.debug(
+                    "Security context already contains authentication: principal={}, authorities={}",
+                    existingAuthentication.getName(),
+                    existingAuthentication.getAuthorities()
+            );
+        } else if (jwtService.isTokenValid(token)) {
             Jws<Claims> claimsJws = jwtService.parseToken(token);
             Claims claims = claimsJws.getBody();
             Collection<? extends GrantedAuthority> authorities = extractAuthorities(claims);
@@ -53,9 +65,24 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     .setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
             SecurityContextHolder.getContext().setAuthentication(authentication);
+            log.debug(
+                    "Authenticated request via JWT: principal={}, authorities={}, path={}",
+                    claims.getSubject(),
+                    authorities,
+                    request.getRequestURI()
+            );
+        } else {
+            log.debug("JWT token validation failed for path={}", request.getRequestURI());
         }
 
         filterChain.doFilter(request, response);
+        Authentication finalAuthentication = SecurityContextHolder.getContext().getAuthentication();
+        log.debug(
+                "JWT filter end: path={}, responseStatus={}, principal={}",
+                request.getRequestURI(),
+                response.getStatus(),
+                finalAuthentication != null ? finalAuthentication.getName() : "anonymous"
+        );
     }
 
     private String resolveToken(HttpServletRequest request) {
