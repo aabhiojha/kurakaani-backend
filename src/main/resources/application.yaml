@@ -43,6 +43,13 @@ logging:
   level:
     org.springframework.security: INFO
 
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /docs
+    display-request-duration: true
+
 app:
   jwt:
     secret: ${JWT_SECRET}
