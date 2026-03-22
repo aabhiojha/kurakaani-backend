@@ -3,10 +3,7 @@ package com.abhishekojha.kurakanimonolith.modules.room_member.model;
 import com.abhishekojha.kurakanimonolith.modules.room.model.Room;
 import com.abhishekojha.kurakanimonolith.modules.user.AppUser;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
@@ -16,6 +13,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Entity
 @Table(name = "room_members")
+@Builder
 public class RoomMember {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
