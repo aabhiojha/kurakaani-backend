@@ -2,7 +2,7 @@ package com.abhishekojha.kurakanimonolith.modules.room.model;
 
 import com.abhishekojha.kurakanimonolith.modules.message.model.Message;
 import com.abhishekojha.kurakanimonolith.modules.room_member.model.RoomMember;
-import com.abhishekojha.kurakanimonolith.modules.user.AppUser;
+import com.abhishekojha.kurakanimonolith.modules.user.model.User;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -46,7 +46,7 @@ public class Room {
 
     @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.PERSIST)
     @JoinColumn(name = "created_by", nullable = false)
-    private AppUser createdBy;
+    private User createdBy;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false)

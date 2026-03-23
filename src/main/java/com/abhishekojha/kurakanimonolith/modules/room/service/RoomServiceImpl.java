@@ -17,8 +17,8 @@ import com.abhishekojha.kurakanimonolith.modules.room_member.mapper.RoomMemberMa
 import com.abhishekojha.kurakanimonolith.modules.room_member.model.RoomMember;
 import com.abhishekojha.kurakanimonolith.modules.room_member.model.RoomRole;
 import com.abhishekojha.kurakanimonolith.modules.room_member.repository.RoomMemberRepository;
-import com.abhishekojha.kurakanimonolith.modules.user.AppUser;
-import com.abhishekojha.kurakanimonolith.modules.user.UserRepository;
+import com.abhishekojha.kurakanimonolith.modules.user.model.User;
+import com.abhishekojha.kurakanimonolith.modules.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -50,12 +50,11 @@ public class RoomServiceImpl implements RoomService {
         return roomMemberMapper.toDto(room.getMembers());
     }
 
-    @PreAuthorize("hasRole('USER')")
     @Override
     @Transactional
     public RoomDto createRoom(CreateRoomRequestDto createRoomRequestDto) {
         // user
-        AppUser user = securityUtils.getRequestUser();
+        User user = securityUtils.getRequestUser();
         if (user == null) {
             throw new UnauthorizedException("The user not authenticated.");
         }
@@ -116,11 +115,11 @@ public class RoomServiceImpl implements RoomService {
         }
 
         // check if the users actually exist
-        List<AppUser> usersList = userRepository.findAllById(userIds);
+        List<User> usersList = userRepository.findAllById(userIds);
 
         // all the user ids from db
         List<Long> fetchedUserIds = usersList.stream()
-                .map(AppUser::getId)
+                .map(User::getId)
                 .toList();
 
         // missing entries in db

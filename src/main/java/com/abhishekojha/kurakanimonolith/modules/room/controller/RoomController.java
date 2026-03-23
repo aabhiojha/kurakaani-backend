@@ -6,6 +6,7 @@ import com.abhishekojha.kurakanimonolith.modules.room.dto.RemoveMembersDto;
 import com.abhishekojha.kurakanimonolith.modules.room.dto.RoomDto;
 import com.abhishekojha.kurakanimonolith.modules.room.service.RoomServiceImpl;
 import com.abhishekojha.kurakanimonolith.modules.room_member.dto.RoomMemberDto;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.websocket.server.PathParam;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +19,8 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/rooms")
 @RequiredArgsConstructor
-@CrossOrigin("http://localhost:5173")
+@CrossOrigin("http://localhost:5173/")
+@Tag(name = "Rooms", description = "Room and membership management endpoints.")
 public class RoomController {
 
     private final RoomServiceImpl roomService;
