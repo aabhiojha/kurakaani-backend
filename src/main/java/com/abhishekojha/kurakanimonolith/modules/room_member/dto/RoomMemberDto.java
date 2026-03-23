@@ -1,8 +1,6 @@
 package com.abhishekojha.kurakanimonolith.modules.room_member.dto;
 
-import com.abhishekojha.kurakanimonolith.modules.room.model.Room;
 import com.abhishekojha.kurakanimonolith.modules.room_member.model.RoomRole;
-import com.abhishekojha.kurakanimonolith.modules.user.AppUser;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Getter;

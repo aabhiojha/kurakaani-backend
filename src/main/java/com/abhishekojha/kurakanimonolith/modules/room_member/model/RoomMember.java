@@ -1,7 +1,7 @@
 package com.abhishekojha.kurakanimonolith.modules.room_member.model;
 
 import com.abhishekojha.kurakanimonolith.modules.room.model.Room;
-import com.abhishekojha.kurakanimonolith.modules.user.AppUser;
+import com.abhishekojha.kurakanimonolith.modules.user.model.User;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -31,7 +31,7 @@ public class RoomMember {
 
     @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.PERSIST)
     @JoinColumn(name = "user_id", nullable = false)
-    private AppUser user;
+    private User user;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "room_role")

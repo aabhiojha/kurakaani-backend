@@ -4,7 +4,7 @@ import com.abhishekojha.kurakanimonolith.modules.room.dto.RoomDto;
 import com.abhishekojha.kurakanimonolith.modules.room.model.Room;
 import com.abhishekojha.kurakanimonolith.modules.room_member.dto.RoomMemberDto;
 import com.abhishekojha.kurakanimonolith.modules.room_member.model.RoomMember;
-import com.abhishekojha.kurakanimonolith.modules.user.AppUser;
+import com.abhishekojha.kurakanimonolith.modules.user.model.User;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.ReportingPolicy;
@@ -24,7 +24,7 @@ public interface RoomMemberMapper {
         return room.getId();
     }
 
-    default Long mapUserToUserId(AppUser user){
+    default Long mapUserToUserId(User user){
         return user.getId();
     }
 
