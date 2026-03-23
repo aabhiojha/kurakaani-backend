@@ -3,7 +3,7 @@ package com.abhishekojha.kurakanimonolith.modules.message.mapper;
 import com.abhishekojha.kurakanimonolith.modules.message.dto.MessageDto;
 import com.abhishekojha.kurakanimonolith.modules.message.model.Message;
 import com.abhishekojha.kurakanimonolith.modules.room.model.Room;
-import com.abhishekojha.kurakanimonolith.modules.user.AppUser;
+import com.abhishekojha.kurakanimonolith.modules.user.model.User;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.ReportingPolicy;
@@ -19,7 +19,7 @@ public interface MessageMapper {
 
     List<MessageDto> toDtoList(List<Message> messages);
 
-    default Long mapToSenderId(AppUser sender){
+    default Long mapToSenderId(User sender){
         return sender.getId();
     }
 
