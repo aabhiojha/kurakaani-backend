@@ -39,6 +39,19 @@ spring:
     enabled: true
     baseline-on-migrate: true
 
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+
 logging:
   level:
     org.springframework.security: INFO
@@ -51,6 +64,8 @@ springdoc:
     display-request-duration: true
 
 app:
+  frontend:
+    oauth-success-url: ${FRONTEND_OAUTH_SUCCESS_URL:http://localhost:5173/auth/callback}
   jwt:
     secret: ${JWT_SECRET}
     expiration-seconds: ${JWT_EXPIRATION_SECONDS}
