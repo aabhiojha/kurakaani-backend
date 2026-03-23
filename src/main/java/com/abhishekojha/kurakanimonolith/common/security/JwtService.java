@@ -1,92 +1,117 @@
 package com.abhishekojha.kurakanimonolith.common.security;
 
-import com.abhishekojha.kurakanimonolith.modules.user.AppUser;
 import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jws;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
-import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
-import java.nio.charset.StandardCharsets;
-import java.time.Instant;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
-import javax.crypto.SecretKey;
-
+import jakarta.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.stereotype.Service;
 
-@Component
+import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Base64;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.function.Function;
+
+
+@Service
 @Slf4j
 public class JwtService {
 
-    private final JwtProperties jwtProperties;
-    private final SecretKey signingKey;
+    @Value("${app.jwt.secret}")
+    private String jwtSecret;
 
-    public JwtService(JwtProperties jwtProperties) {
-        this.jwtProperties = jwtProperties;
-        this.signingKey = Keys.hmacShaKeyFor(resolveSecret(jwtProperties.getSecret()));
+    @Value("${app.jwt.expiration-seconds}")
+    private long jwtExpirationSeconds;
+
+    public String extractUsername(String token) {
+        return extractClaim(token, Claims::getSubject);
     }
 
-    public String generateToken(AppUser user) {
-        Instant now = Instant.now();
-        Instant expiresAt = now.plusSeconds(jwtProperties.getExpirationSeconds());
+    public <T> T extractClaim(String token, @NotNull Function<Claims, T> claimsResolver) {
+        final Claims claims = extractAllClaims(token);
+        return claimsResolver.apply(claims);
+    }
 
-        List<String> roles = user.getRoles()
-                .stream()
-                .map(role -> role.name())
-                .sorted()
-                .toList();
+    public String generateToken(UserDetails userDetails) {
+        return generateToken(new HashMap<>(), userDetails);
+    }
 
-        String token = Jwts.builder()
-                .setSubject(user.getEmail())
-                .addClaims(Map.of(
-                        "userId", user.getId(),
-                        "name", user.getName(),
-                        "roles", roles
-                ))
-                .setIssuedAt(Date.from(now))
-                .setExpiration(Date.from(expiresAt))
-                .signWith(signingKey, SignatureAlgorithm.HS256)
+
+    // Generate token with extra claims (roles, permissions, etc.)
+    public String generateToken(Map<String, Object> extraClaims, UserDetails userDetails) {
+        long now = System.currentTimeMillis();
+        return Jwts.builder()
+                .setClaims(extraClaims)
+                .setSubject(userDetails.getUsername())
+                .setIssuedAt(new Date(now))
+                .setExpiration(new Date(now + (jwtExpirationSeconds * 1000)))
+                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
                 .compact();
-        log.debug("Generated JWT for user={}, userId={}, expiresAt={}", user.getEmail(), user.getId(), expiresAt);
-        return token;
     }
 
-    public Jws<Claims> parseToken(String token) {
-        Jws<Claims> claims = Jwts.parserBuilder()
-                .setSigningKey(signingKey)
-                .build()
-                .parseClaimsJws(token);
-        log.debug(
-                "Parsed JWT successfully: subject={}, expiration={}",
-                claims.getBody().getSubject(),
-                claims.getBody().getExpiration()
-        );
-        return claims;
-    }
-
-    public boolean isTokenValid(String token) {
+    // Validate token - check username matches and token is not expired
+    public boolean isTokenValid(String token, UserDetails userDetails) {
         try {
-            parseToken(token);
-            log.debug("JWT validation succeeded");
-            return true;
-        } catch (JwtException | IllegalArgumentException ex) {
-            log.warn("JWT validation failed: {}", ex.getMessage());
+            final String username = extractUsername(token);
+            return username != null
+                    && username.equals(userDetails.getUsername())
+                    && !isTokenExpired(token);
+        } catch (JwtException | IllegalArgumentException exception) {
+            log.debug("JWT validation failed: {}", exception.getMessage());
             return false;
         }
     }
 
-    private byte[] resolveSecret(String secret) {
+    // Check if token has expired
+    private boolean isTokenExpired(String token) {
+        return extractExpiration(token).before(new Date());
+    }
+
+    private Date extractExpiration(String token) {
+        return extractClaim(token, Claims::getExpiration);
+    }
+
+    // Parse the token and extract all claims
+    private Claims extractAllClaims(String token) {
+        return Jwts.parser()
+                .setSigningKey(getSigningKey())
+                .parseClaimsJws(token)
+                .getBody();
+    }
+
+    private SecretKey getSigningKey() {
+        byte[] keyBytes = resolveKeyBytes(jwtSecret);
+        return Keys.hmacShaKeyFor(keyBytes);
+    }
+
+    private byte[] resolveKeyBytes(String secret) {
         try {
-            byte[] decodedSecret = Decoders.BASE64.decode(secret);
-            log.debug("Loaded JWT signing secret from base64 configuration");
-            return decodedSecret;
-        } catch (IllegalArgumentException ex) {
-            log.debug("JWT secret is not base64 encoded, using raw UTF-8 bytes");
-            return secret.getBytes(StandardCharsets.UTF_8);
+            byte[] decoded = Base64.getDecoder().decode(secret);
+            if (decoded.length >= 32) {
+                return decoded;
+            }
+        } catch (IllegalArgumentException ignored) {
+            // Fall through to plain-text handling.
+        }
+        return sha256(secret.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private byte[] sha256(byte[] input) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            return digest.digest(input);
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException("SHA-256 not available in JVM", exception);
         }
     }
+
 }
