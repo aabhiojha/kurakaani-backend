@@ -44,7 +44,7 @@ public class Room {
     @Enumerated(EnumType.STRING)
     private RoomType type;
 
-    @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.PERSIST)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by", nullable = false)
     private User createdBy;
 

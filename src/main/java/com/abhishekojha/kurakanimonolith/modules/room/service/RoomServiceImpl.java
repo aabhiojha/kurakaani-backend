@@ -96,9 +96,19 @@ public class RoomServiceImpl implements RoomService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<RoomDto> getRooms() {
+        User user = securityUtils.getRequestUser();
 
-        return List.of();
+        List<RoomMember> roomMemberships = roomMemberRepository.findByUser(user);
+
+        // room objects the user is part of
+        List<Room> roomList = roomMemberships.stream()
+                .map(member -> member.getRoom())
+                .toList();
+
+        // return the room dtos
+        return roomMapper.toDtoList(roomList);
     }
 
     @Override
