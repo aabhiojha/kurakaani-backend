@@ -1,6 +1,7 @@
 package com.abhishekojha.kurakanimonolith.common.security;
 
 import com.abhishekojha.kurakanimonolith.common.exception.exceptions.ResourceNotFoundException;
+import com.abhishekojha.kurakanimonolith.common.exception.exceptions.UnauthorizedException;
 import com.abhishekojha.kurakanimonolith.modules.user.model.User;
 import com.abhishekojha.kurakanimonolith.modules.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -18,21 +19,23 @@ public class SecurityUtils {
 
     public User getRequestUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null) {
+        if (authentication == null || !authentication.isAuthenticated()) {
             log.warn("Security context does not contain authentication");
-            return null;
+            throw new UnauthorizedException("The user is not authenticated.");
         }
 
-        String email = authentication.getName();
-        log.debug("Looking up request user by email={}", email);
+        String principal = authentication.getName();
+        log.debug("Looking up request user by principal={}", principal);
 
-        User user = userRepository.findByEmailIgnoreCase(email).orElseThrow(() ->
-                new ResourceNotFoundException("User not found."));
+        User user = userRepository.findByUserName(principal)
+                .or(() -> userRepository.findByEmailIgnoreCase(principal))
+                .orElseThrow(() -> new ResourceNotFoundException("User not found."));
 
         if (user == null) {
-            log.warn("No AppUser found for authenticated principal={}", email);
+            log.warn("No AppUser found for authenticated principal={}", principal);
         } else {
-            log.debug("Resolved request user: id={}, email={}", user.getId(), user.getEmail());
+            log.debug("Resolved request user: id={}, username={}, email={}",
+                    user.getId(), user.getUsername(), user.getEmail());
         }
         return user;
     }
