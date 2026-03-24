@@ -1,9 +1,8 @@
 package com.abhishekojha.kurakanimonolith.modules.room.controller;
 
-import com.abhishekojha.kurakanimonolith.modules.room.dto.AddUsersToRoomDto;
-import com.abhishekojha.kurakanimonolith.modules.room.dto.CreateRoomRequestDto;
-import com.abhishekojha.kurakanimonolith.modules.room.dto.RemoveMembersDto;
-import com.abhishekojha.kurakanimonolith.modules.room.dto.RoomDto;
+import com.abhishekojha.kurakanimonolith.modules.room.dto.*;
+import com.abhishekojha.kurakanimonolith.modules.room.dto.roomList.RoomListDto;
+import com.abhishekojha.kurakanimonolith.modules.room.dto.roomMessage.RoomMessageDto;
 import com.abhishekojha.kurakanimonolith.modules.room.service.RoomServiceImpl;
 import com.abhishekojha.kurakanimonolith.modules.room_member.dto.RoomMemberDto;
 import io.swagger.v3.oas.annotations.Operation;
@@ -33,9 +32,20 @@ public class RoomController {
             @ApiResponse(responseCode = "401", description = "Not authenticated")
     })
     @GetMapping
-    public ResponseEntity<List<RoomDto>> getAllRooms(){
-        List<RoomDto> rooms = roomService.getRooms();
+    public ResponseEntity<List<?>> getAllRooms(){
+        List<RoomListDto> rooms = roomService.getRooms();
         return new ResponseEntity<>(rooms, HttpStatus.OK);
+    }
+
+    @Operation(summary = "Get messages of room", description = "Returns all the messages of the room")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "List of messages returned"),
+            @ApiResponse(responseCode = "401", description = "Not authenticated")
+    })
+    @GetMapping("room/{roomId}/message")
+    public ResponseEntity<List<?>> getMessagesForRoom(@PathVariable Long roomId){
+        List<RoomMessageDto> messages = roomService.getAllMessagesForRoom(roomId);
+        return new ResponseEntity<>(messages, HttpStatus.OK);
     }
 
     @Operation(summary = "Get room members", description = "Returns all members of the specified room. The caller must be a member of the room.")

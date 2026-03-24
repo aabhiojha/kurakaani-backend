@@ -40,6 +40,7 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private boolean enabled = true;
 
+    private String profileImageUrl;
 
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(

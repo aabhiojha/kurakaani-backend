@@ -1,12 +1,9 @@
 package com.abhishekojha.kurakanimonolith.modules.room.service;
 
-import com.abhishekojha.kurakanimonolith.modules.room.dto.AddUsersToRoomDto;
-import com.abhishekojha.kurakanimonolith.modules.room.dto.CreateRoomRequestDto;
-import com.abhishekojha.kurakanimonolith.modules.room.dto.RemoveMembersDto;
-import com.abhishekojha.kurakanimonolith.modules.room.dto.RoomDto;
+import com.abhishekojha.kurakanimonolith.modules.room.dto.*;
+import com.abhishekojha.kurakanimonolith.modules.room.dto.roomList.RoomListDto;
+import com.abhishekojha.kurakanimonolith.modules.room.dto.roomMessage.RoomMessageDto;
 import com.abhishekojha.kurakanimonolith.modules.room_member.dto.RoomMemberDto;
-import com.abhishekojha.kurakanimonolith.modules.room_member.model.RoomMember;
-import org.springframework.boot.json.JsonWriter;
 
 import java.util.List;
 
@@ -15,7 +12,9 @@ public interface RoomService {
 
     RoomDto createRoom(CreateRoomRequestDto createRoomRequestDto);
 
-    List<RoomDto> getRooms();
+    List<RoomListDto> getRooms();
+
+    List<RoomMessageDto> getAllMessagesForRoom(Long roomId);
 
     void addUserToRoom(AddUsersToRoomDto addUsersToRoomDto,Long room_id);
 

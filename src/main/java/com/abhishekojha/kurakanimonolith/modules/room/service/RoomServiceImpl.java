@@ -5,10 +5,10 @@ import com.abhishekojha.kurakanimonolith.common.exception.exceptions.DuplicateRe
 import com.abhishekojha.kurakanimonolith.common.exception.exceptions.ResourceNotFoundException;
 import com.abhishekojha.kurakanimonolith.common.exception.exceptions.UnauthorizedException;
 import com.abhishekojha.kurakanimonolith.common.security.SecurityUtils;
-import com.abhishekojha.kurakanimonolith.modules.room.dto.AddUsersToRoomDto;
-import com.abhishekojha.kurakanimonolith.modules.room.dto.CreateRoomRequestDto;
-import com.abhishekojha.kurakanimonolith.modules.room.dto.RemoveMembersDto;
-import com.abhishekojha.kurakanimonolith.modules.room.dto.RoomDto;
+import com.abhishekojha.kurakanimonolith.modules.room.dto.*;
+import com.abhishekojha.kurakanimonolith.modules.room.dto.roomList.RecentMessageDto;
+import com.abhishekojha.kurakanimonolith.modules.room.dto.roomList.RoomListDto;
+import com.abhishekojha.kurakanimonolith.modules.room.dto.roomMessage.RoomMessageDto;
 import com.abhishekojha.kurakanimonolith.modules.room.mapper.RoomMapper;
 import com.abhishekojha.kurakanimonolith.modules.room.model.Room;
 import com.abhishekojha.kurakanimonolith.modules.room.repository.RoomRepository;
@@ -21,12 +21,13 @@ import com.abhishekojha.kurakanimonolith.modules.user.model.User;
 import com.abhishekojha.kurakanimonolith.modules.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -59,7 +60,7 @@ public class RoomServiceImpl implements RoomService {
             throw new UnauthorizedException("The user not authenticated.");
         }
         // check if the room of same name exists already.
-        List<Room> roomList = roomRepository.findByCreatedByAndNameIgnoreCase(user, createRoomRequestDto.getName());
+        List<Room> roomList = roomRepository.findByCreatedByAndNameIgnoreCase(user.getId(), createRoomRequestDto.getName());
 
         if (!roomList.isEmpty()) {
             throw new DuplicateResourceException("The room with name '%s' already exists".formatted(createRoomRequestDto.getName()));
@@ -97,18 +98,29 @@ public class RoomServiceImpl implements RoomService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<RoomDto> getRooms() {
+    public List<RoomListDto> getRooms() {
         User user = securityUtils.getRequestUser();
+        List<RoomListDto> rooms = roomRepository.findRoomsForUser(user.getId());
 
-        List<RoomMember> roomMemberships = roomMemberRepository.findByUser(user);
-
-        // room objects the user is part of
-        List<Room> roomList = roomMemberships.stream()
-                .map(member -> member.getRoom())
+        List<Long> roomIds = rooms.stream()
+                .map(RoomListDto::getId)
                 .toList();
 
-        // return the room dtos
-        return roomMapper.toDtoList(roomList);
+        Map<Long, RecentMessageDto> recentMessagesByRoomId = roomRepository.getRecentMessagesForRooms(roomIds)
+                .stream()
+                .collect(Collectors.toMap(recentMessageDto -> recentMessageDto.getRoomId(), msg -> msg));
+
+        rooms.forEach(
+                room -> room.setRecentMessage(
+                        recentMessagesByRoomId.get(room.getId())));
+
+        return rooms;
+    }
+
+    @Override
+    public List<RoomMessageDto> getAllMessagesForRoom(Long roomId) {
+        // ill have to write a custom repo method for getting data in roommessagedto
+        return roomRepository.getMessagesForRoom(roomId);
     }
 
     @Override

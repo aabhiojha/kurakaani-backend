@@ -8,6 +8,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -35,9 +36,11 @@ public class Room {
 
     private String description;
 
+    @BatchSize(size = 30)
     @OneToMany(mappedBy = "room")
     private List<RoomMember> members = new ArrayList<>();
 
+    @BatchSize(size = 30)
     @OneToMany(mappedBy = "room")
     private List<Message> messages = new ArrayList<>();
 
