@@ -20,7 +20,6 @@ import java.util.Map;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@ConditionalOnBean(JavaMailSender.class)
 public class EmailServiceImpl implements EmailService {
     private final JavaMailSender mailSender;
 

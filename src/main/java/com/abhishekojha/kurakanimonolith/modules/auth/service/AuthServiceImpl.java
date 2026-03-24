@@ -2,6 +2,7 @@ package com.abhishekojha.kurakanimonolith.modules.auth.service;
 
 import com.abhishekojha.kurakanimonolith.common.helpers.RandomNumbers;
 import com.abhishekojha.kurakanimonolith.common.security.JwtService;
+import com.abhishekojha.kurakanimonolith.common.security.SecurityUtils;
 import com.abhishekojha.kurakanimonolith.modules.auth.authDTO.*;
 import com.abhishekojha.kurakanimonolith.modules.auth.event.PasswordResetConfirmEvent;
 import com.abhishekojha.kurakanimonolith.modules.auth.event.PasswordResetEvent;
@@ -15,10 +16,12 @@ import com.abhishekojha.kurakanimonolith.modules.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.http.HttpStatus;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,6 +42,7 @@ public class AuthServiceImpl implements AuthService {
     private final AuthenticationManager authenticationManager;
     private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final ApplicationEventPublisher publisher;
+    private final SecurityUtils securityUtils;
 
     @Override
     @Async

@@ -1,7 +1,9 @@
 package com.abhishekojha.kurakanimonolith.modules.auth.repository;
 
+import com.abhishekojha.kurakanimonolith.modules.auth.authDTO.PasswordResetDTO;
 import com.abhishekojha.kurakanimonolith.modules.auth.model.PasswordResetToken;
 import com.abhishekojha.kurakanimonolith.modules.user.model.User;
+import jakarta.validation.constraints.NotNull;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -13,9 +15,9 @@ public interface PasswordResetTokenRepository extends JpaRepository<PasswordRese
 
     Optional<PasswordResetToken> findFirstByUserOrderByIdDesc(User user);
 
-    PasswordResetToken findByToken(Integer token);
-
     List<PasswordResetToken> findByUserAndUsedNot(User user, Boolean used);
 
     List<PasswordResetToken> findByUserAndUsed(User user, Boolean used);
+
+    PasswordResetToken findByToken(Integer token);
 }
