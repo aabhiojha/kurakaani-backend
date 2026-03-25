@@ -1,13 +1,17 @@
 package com.abhishekojha.kurakanimonolith.modules.friendRequest.service;
 
-import com.abhishekojha.kurakanimonolith.modules.friendRequest.dto.FriendShipResponseDto;
+import com.abhishekojha.kurakanimonolith.modules.friendRequest.dto.FriendShipDto;
+import com.abhishekojha.kurakanimonolith.modules.friendRequest.model.enums.FriendRequestResponse;
 
 import java.util.List;
 
 public interface FriendRequestService {
-    void sendFriendRequest(Long recipientId);
-    List<FriendShipResponseDto> listSentFriendRequest();
-    List<FriendShipResponseDto> listIncomingFriendRequest();
-    void acceptFriendRequest(Long requesterId);
-    void denyFriendRequest(Long requesterId);
+    void sendFriendRequest(Long userId);
+    void respondToFriendRequest(Long userId, FriendRequestResponse response);
+    void cancelFriendRequest(Long userId);
+    void unfriend(Long userId);
+    List<FriendShipDto> getSentRequests();
+    List<FriendShipDto> getIncomingRequests();
+    List<FriendShipDto> getFriends();
+
 }

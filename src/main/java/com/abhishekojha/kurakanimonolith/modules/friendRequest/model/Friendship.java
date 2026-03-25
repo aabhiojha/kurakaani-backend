@@ -1,5 +1,6 @@
 package com.abhishekojha.kurakanimonolith.modules.friendRequest.model;
 
+import com.abhishekojha.kurakanimonolith.modules.friendRequest.model.enums.FriendRequestStatus;
 import com.abhishekojha.kurakanimonolith.modules.user.model.User;
 import jakarta.persistence.*;
 import lombok.*;
@@ -38,7 +39,7 @@ public class Friendship {
     private User recipient;
 
     @Enumerated(EnumType.STRING)
-    private RequestStatus status = RequestStatus.PENDING;
+    private FriendRequestStatus status = FriendRequestStatus.PENDING;
 
     @CreationTimestamp
     private LocalDateTime createdAt;
