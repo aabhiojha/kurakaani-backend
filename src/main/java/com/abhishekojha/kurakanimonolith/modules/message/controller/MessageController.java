@@ -6,6 +6,7 @@ import com.abhishekojha.kurakanimonolith.modules.message.dto.MessageRequest;
 import com.abhishekojha.kurakanimonolith.modules.message.mapper.MessageMapper;
 import com.abhishekojha.kurakanimonolith.modules.message.model.Message;
 import com.abhishekojha.kurakanimonolith.modules.message.repository.MessageRepository;
+import com.abhishekojha.kurakanimonolith.modules.message.service.MessageService;
 import com.abhishekojha.kurakanimonolith.modules.room.model.Room;
 import com.abhishekojha.kurakanimonolith.modules.room.repository.RoomRepository;
 import com.abhishekojha.kurakanimonolith.modules.room_member.repository.RoomMemberRepository;
@@ -25,12 +26,8 @@ import java.security.Principal;
 @RequiredArgsConstructor
 @CrossOrigin("*")
 public class MessageController {
-    private final RoomRepository roomRepository;
-    private final MessageRepository messageRepository;
-    private final RoomMemberRepository roomMemberRepository;
-    private final SimpMessagingTemplate messagingTemplate;
-    private final MessageMapper messageMapper;
-    private final UserRepository userRepository;
+
+    private final MessageService messageService;
 
     @MessageMapping("/chat.send/{roomId}")
     public void sendMessage(
@@ -38,29 +35,6 @@ public class MessageController {
             @Payload MessageRequest request,
             Principal principal
     ) {
-        Room room = roomRepository.findById(roomId).orElseThrow(
-                () -> new ResourceNotFoundException("Room not found")
-        );
-        User sender = userRepository.findByUserName(principal.getName()).orElseThrow(
-                () -> new ResourceNotFoundException("User not found")
-        );
-
-        boolean isMember = roomMemberRepository.existsByRoomIdAndUserId(roomId, sender.getId());
-        if (!isMember) {
-            throw new UnauthorizedException("You are not a member of this room");
-        }
-
-        Message savedMessage = messageRepository.save(Message.builder()
-                .sender(sender)
-                .room(room)
-                .content(request.getContent())
-                .isEdited(Boolean.FALSE)
-                .isDeleted(Boolean.FALSE)
-                .build());
-
-        messagingTemplate.convertAndSend(
-                "/topic/rooms/" + roomId,
-                messageMapper.toDto(savedMessage)
-        );
+        messageService.sendMessage(roomId, request, principal);
     }
 }
