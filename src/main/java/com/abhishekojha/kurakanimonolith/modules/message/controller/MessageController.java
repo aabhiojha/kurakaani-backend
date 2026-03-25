@@ -1,22 +1,11 @@
 package com.abhishekojha.kurakanimonolith.modules.message.controller;
 
-import com.abhishekojha.kurakanimonolith.common.exception.exceptions.ResourceNotFoundException;
-import com.abhishekojha.kurakanimonolith.common.exception.exceptions.UnauthorizedException;
 import com.abhishekojha.kurakanimonolith.modules.message.dto.MessageRequest;
-import com.abhishekojha.kurakanimonolith.modules.message.mapper.MessageMapper;
-import com.abhishekojha.kurakanimonolith.modules.message.model.Message;
-import com.abhishekojha.kurakanimonolith.modules.message.repository.MessageRepository;
 import com.abhishekojha.kurakanimonolith.modules.message.service.MessageService;
-import com.abhishekojha.kurakanimonolith.modules.room.model.Room;
-import com.abhishekojha.kurakanimonolith.modules.room.repository.RoomRepository;
-import com.abhishekojha.kurakanimonolith.modules.room_member.repository.RoomMemberRepository;
-import com.abhishekojha.kurakanimonolith.modules.user.model.User;
-import com.abhishekojha.kurakanimonolith.modules.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.CrossOrigin;
 
@@ -30,11 +19,11 @@ public class MessageController {
     private final MessageService messageService;
 
     @MessageMapping("/chat.send/{roomId}")
-    public void sendMessage(
+    public void sendMessageToRoom(
             @DestinationVariable Long roomId,
             @Payload MessageRequest request,
             Principal principal
     ) {
-        messageService.sendMessage(roomId, request, principal);
+        messageService.sendMessageToRoom(roomId, request, principal);
     }
 }

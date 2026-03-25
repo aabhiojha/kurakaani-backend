@@ -30,7 +30,7 @@ public class MessageServiceImpl implements MessageService {
 
 
     @Override
-    public void sendMessage(Long roomId, MessageRequest request, Principal principal) {
+    public void sendMessageToRoom(Long roomId, MessageRequest request, Principal principal) {
         Room room = roomRepository.findById(roomId).orElseThrow(
                 () -> new ResourceNotFoundException("Room not found")
         );

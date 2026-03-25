@@ -7,7 +7,7 @@ import org.springframework.messaging.handler.annotation.Payload;
 import java.security.Principal;
 
 public interface MessageService {
-    void sendMessage(
+    void sendMessageToRoom(
             Long roomId,
             MessageRequest request,
             Principal principal
