@@ -1,9 +1,6 @@
 package com.abhishekojha.kurakanimonolith.modules.friendRequest.dto;
 
-import com.abhishekojha.kurakanimonolith.modules.friendRequest.model.RequestStatus;
 import lombok.*;
-
-import java.time.LocalDateTime;
 
 @Getter
 @Setter
