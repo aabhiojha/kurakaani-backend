@@ -1,6 +1,8 @@
 package com.abhishekojha.kurakanimonolith.modules.user.service;
 
 import com.abhishekojha.kurakanimonolith.common.exception.exceptions.ResourceNotFoundException;
+import com.abhishekojha.kurakanimonolith.common.helpers.FileNameUtils;
+import com.abhishekojha.kurakanimonolith.common.objectStorage.S3Operations;
 import com.abhishekojha.kurakanimonolith.modules.auth.model.Role;
 import com.abhishekojha.kurakanimonolith.modules.user.dtos.UpdateUserDto;
 import com.abhishekojha.kurakanimonolith.modules.user.dtos.UserDto;
@@ -11,14 +13,17 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Objects;
 
 @Slf4j
 @RequiredArgsConstructor
 @Service
 public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
+    private final S3Operations s3Operations;
 
     @Override
     @Transactional(readOnly = true)
@@ -77,12 +82,30 @@ public class UserServiceImpl implements UserService {
         return toDto(savedUser);
     }
 
+
+
     @Override
     @Transactional
     public void deleteUser(Long userId) {
         User user = findUserById(userId);
         userRepository.delete(user);
         log.debug("Deleted user with id={}", userId);
+    }
+
+    @Override
+    public void setProfilePicture(MultipartFile profilePicture) {
+        User user = getAuthenticatedUser();
+        String normalizedName = FileNameUtils.normalize(Objects.requireNonNull(profilePicture.getOriginalFilename()));
+        String kurakaaniUserPicBucket = "kurakaani-profile-pics";
+        try {
+//            s3Operations.uploadFile(profilePicture, )
+            String profilePicUrl = s3Operations.generatePublicUrl(normalizedName, kurakaaniUserPicBucket);
+            user.setProfileImageUrl(profilePicUrl);
+            userRepository.save(user);
+            log.info("The user profile picture updated");
+        } catch (Exception e){
+            System.out.println("fuck off");
+        }
     }
 
     private User getAuthenticatedUser() {

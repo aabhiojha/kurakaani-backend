@@ -2,6 +2,7 @@ package com.abhishekojha.kurakanimonolith.modules.friendRequest.service;
 
 import com.abhishekojha.kurakanimonolith.modules.friendRequest.dto.FriendShipDto;
 import com.abhishekojha.kurakanimonolith.modules.friendRequest.model.enums.FriendRequestResponse;
+import com.abhishekojha.kurakanimonolith.modules.user.model.User;
 
 import java.util.List;
 
@@ -13,5 +14,5 @@ public interface FriendRequestService {
     List<FriendShipDto> getSentRequests();
     List<FriendShipDto> getIncomingRequests();
     List<FriendShipDto> getFriends();
-
+    List<User> getAllUsers();
 }

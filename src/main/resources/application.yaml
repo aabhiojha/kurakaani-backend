@@ -35,6 +35,11 @@ spring:
 #              - profile
 #              - email
 #            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
   flyway:
     enabled: true
     baseline-on-migrate: true
@@ -62,6 +67,12 @@ springdoc:
   swagger-ui:
     path: /docs
     display-request-duration: true
+
+storage:
+  endpoint: ${STORAGE_ENDPOINT:http://127.0.0.1:9000}
+  access-key: ${STORAGE_ACCESS_KEY:rustfsadmin}
+  secret-key: ${STORAGE_SECRET_KEY:rustfsadmin}
+  bucket: ${STORAGE_BUCKET:kurakani}
 
 app:
   frontend:

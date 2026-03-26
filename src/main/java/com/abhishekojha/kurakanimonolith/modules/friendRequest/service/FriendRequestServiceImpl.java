@@ -1,5 +1,7 @@
 package com.abhishekojha.kurakanimonolith.modules.friendRequest.service;
 
+import com.abhishekojha.kurakanimonolith.common.exception.exceptions.BadRequestException;
+import com.abhishekojha.kurakanimonolith.common.exception.exceptions.DuplicateResourceException;
 import com.abhishekojha.kurakanimonolith.common.exception.exceptions.ResourceNotFoundException;
 import com.abhishekojha.kurakanimonolith.common.security.SecurityUtils;
 import com.abhishekojha.kurakanimonolith.modules.friendRequest.dto.FriendShipDto;
@@ -37,7 +39,9 @@ public class FriendRequestServiceImpl implements FriendRequestService {
         Friendship friendship = Friendship.builder().requester(user).status(FriendRequestStatus.PENDING).recipient(recipient).build();
 
         // TODO: cannot send request to themself
-
+        if (userId.equals(user.getId())){
+            throw new BadRequestException("User cannot send friend request to themselves");
+        }
 
         // save to db
         Friendship save = friendShipRepository.save(friendship);
@@ -52,13 +56,15 @@ public class FriendRequestServiceImpl implements FriendRequestService {
     public void respondToFriendRequest(Long userId, FriendRequestResponse response) {
 
         // the one responding to the request
-        User user = securityUtils.getRequestUser();
+        User responder = securityUtils.getRequestUser();
+        log.debug("Request responding user: {}", responder.getId());
 
         // the one who sent the request
-        User recipient = userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        User requester = userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        log.debug("Request sending user: {}", requester.getId());
 
         // get the friendship object the user need to respond to
-        Friendship friendship = friendShipRepository.findByRequesterAndRecipient(user, recipient);
+        Friendship friendship = friendShipRepository.findByRequesterAndRecipient(requester, responder);
         log.info("The friendship object is retrieved");
 
         friendship.setStatus(response == FriendRequestResponse.ACCEPT ?
@@ -71,9 +77,9 @@ public class FriendRequestServiceImpl implements FriendRequestService {
         // we gotta send this as notification to the recipient user.
         // conditional notification sending
         if (response == FriendRequestResponse.ACCEPT){
-            notificationService.sendFriendRequestAccepted(user.getUsername(), friendShipMapper.toDto(save));
+            notificationService.sendFriendRequestAccepted(requester.getUsername(), friendShipMapper.toDto(save));
         } else {
-            notificationService.sendFriendRequestRejected(user.getUsername(), friendShipMapper.toDto(save));
+            notificationService.sendFriendRequestRejected(requester.getUsername(), friendShipMapper.toDto(save));
         }
         log.info("The request status notification is sent to the requester");
     }
@@ -146,7 +152,7 @@ public class FriendRequestServiceImpl implements FriendRequestService {
         // return all the received pending requests
         User user = securityUtils.getRequestUser();
 
-        List<Friendship> allFriendshipObjs = friendShipRepository.findByRequester(user);
+        List<Friendship> allFriendshipObjs = friendShipRepository.findByRequesterOrRecipientAndStatus(user, user, FriendRequestStatus.ACCEPTED);
 
         List<Friendship> friendsList = allFriendshipObjs.stream()
                 .filter(friendship -> friendship.getStatus() == FriendRequestStatus.ACCEPTED)
@@ -154,5 +160,12 @@ public class FriendRequestServiceImpl implements FriendRequestService {
 
         log.info("The friends are retrieved");
         return friendShipMapper.toListDto(friendsList);
+    }
+
+    @Override
+    public List<User> getAllUsers() {
+//        List<User> all = userRepository.findAll();
+        ;
+            return List.of();
     }
 }

@@ -13,6 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -85,4 +86,12 @@ public class UserController {
         userService.deleteUser(userId);
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
+
+    @PostMapping("profilePic/upload")
+    public ResponseEntity<Void> uploadProfilePicture(@RequestParam("file") MultipartFile file) {
+
+        userService.setProfilePicture(file);
+        return new ResponseEntity<>(HttpStatus.OK   );
+    }
+
 }
