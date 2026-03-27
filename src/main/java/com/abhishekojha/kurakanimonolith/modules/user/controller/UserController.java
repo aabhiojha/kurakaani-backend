@@ -25,12 +25,10 @@ import java.util.List;
 public class UserController {
     private final UserService userService;
 
-    @Operation(summary = "Get all users (admin)", description = "Returns a list of all registered users. Requires ADMIN role.")
+    @Operation(summary = "Get all users", description = "Returns a list of all registered users.")
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "List of users returned"),
-            @ApiResponse(responseCode = "403", description = "Access denied — ADMIN role required")
+            @ApiResponse(responseCode = "200", description = "List of users returned")
     })
-    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
     public ResponseEntity<List<UserDto>> getAllUsers() {
         log.debug("Received request to fetch all users");

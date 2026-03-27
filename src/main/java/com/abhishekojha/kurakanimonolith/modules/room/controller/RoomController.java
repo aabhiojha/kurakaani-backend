@@ -35,7 +35,7 @@ public class RoomController {
             @ApiResponse(responseCode = "401", description = "Not authenticated")
     })
     @GetMapping
-    public ResponseEntity<List<?>> getAllRooms(){
+    public ResponseEntity<List<?>> getAllRooms() {
         List<RoomListDto> rooms = roomService.getRooms();
         return new ResponseEntity<>(rooms, HttpStatus.OK);
     }
@@ -46,7 +46,7 @@ public class RoomController {
             @ApiResponse(responseCode = "401", description = "Not authenticated")
     })
     @GetMapping("room/{roomId}/message")
-    public ResponseEntity<List<?>> getMessagesForRoom(@PathVariable Long roomId){
+    public ResponseEntity<List<?>> getMessagesForRoom(@PathVariable Long roomId) {
         List<RoomMessageDto> messages = roomService.getAllMessagesForRoom(roomId);
         return new ResponseEntity<>(messages, HttpStatus.OK);
     }
@@ -69,13 +69,29 @@ public class RoomController {
             @ApiResponse(responseCode = "400", description = "Invalid request body"),
             @ApiResponse(responseCode = "401", description = "Not authenticated")
     })
-    @PostMapping
-    public ResponseEntity<?> createNewRoom(
+    @PostMapping("/group")
+    public ResponseEntity<?> createNewGroup(
             @Valid @RequestBody CreateRoomRequestDto createRoomRequestDto
     ) {
-        RoomDto room = roomService.createRoom(createRoomRequestDto);
+        RoomDto room = roomService.createRoomGroup(createRoomRequestDto);
         return new ResponseEntity<>(room, HttpStatus.CREATED);
     }
+
+    // create a room with only two users i.e DM
+    @Operation(summary = "Create a DM room", description = "Creates a DM. Must have one other user and both are members.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Room created, new room returned"),
+            @ApiResponse(responseCode = "400", description = "Invalid request body"),
+            @ApiResponse(responseCode = "401", description = "Not authenticated")
+    })
+    @PostMapping("/dm")
+    public ResponseEntity<RoomDto> CreateNewDm(
+            @RequestParam Long userId
+    ) {
+        RoomDto roomDm = roomService.createRoomDm(userId);
+        return new ResponseEntity<>(roomDm, HttpStatus.CREATED);
+    }
+
 
     @Operation(summary = "Add users to a room", description = "Adds one or more users to an existing room by their IDs. The caller must be a member of the room.")
     @ApiResponses({

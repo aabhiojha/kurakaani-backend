@@ -10,7 +10,9 @@ import java.util.List;
 public interface RoomService {
     List<RoomMemberDto> getAllMembers(Long roomId);
 
-    RoomDto createRoom(CreateRoomRequestDto createRoomRequestDto);
+    RoomDto createRoomGroup(CreateRoomRequestDto createRoomRequestDto);
+
+    RoomDto createRoomDm(Long userId);
 
     List<RoomListDto> getRooms();
 

@@ -13,6 +13,7 @@ import com.abhishekojha.kurakanimonolith.modules.room.dto.roomList.RoomListDto;
 import com.abhishekojha.kurakanimonolith.modules.room.dto.roomMessage.RoomMessageDto;
 import com.abhishekojha.kurakanimonolith.modules.room.mapper.RoomMapper;
 import com.abhishekojha.kurakanimonolith.modules.room.model.Room;
+import com.abhishekojha.kurakanimonolith.modules.room.model.RoomType;
 import com.abhishekojha.kurakanimonolith.modules.room.repository.RoomRepository;
 import com.abhishekojha.kurakanimonolith.modules.room_member.dto.RoomMemberDto;
 import com.abhishekojha.kurakanimonolith.modules.room_member.mapper.RoomMemberMapper;
@@ -26,9 +27,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -56,7 +59,7 @@ public class RoomServiceImpl implements RoomService {
 
     @Override
     @Transactional
-    public RoomDto createRoom(CreateRoomRequestDto createRoomRequestDto) {
+    public RoomDto createRoomGroup(CreateRoomRequestDto createRoomRequestDto) {
         // user
         User user = securityUtils.getRequestUser();
         if (user == null) {
@@ -97,6 +100,26 @@ public class RoomServiceImpl implements RoomService {
         savedRoom.setMembers(List.of(roomMember));
 
         return roomMapper.toDto(savedRoom);
+    }
+
+    @Override
+    @Transactional
+    public RoomDto createRoomDm(
+            Long userId
+    ) {
+        User user1 = securityUtils.getRequestUser();
+
+//        find the other user
+        User user2 = userRepository.findById(userId).orElseThrow(
+                () -> new ResourceNotFoundException("User not found")
+        );
+
+        // check if the two users are in some dm already
+        Optional<Room> existingDm = roomRepository.findExistingDm(user1.getId(), user2.getId());
+        return roomMapper.toDto(existingDm.get());
+
+        // na vayeko khandama
+        // create a new dm with these two members
     }
 
     @Override
