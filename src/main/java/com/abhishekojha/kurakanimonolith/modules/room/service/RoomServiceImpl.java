@@ -24,6 +24,7 @@ import com.abhishekojha.kurakanimonolith.modules.user.model.User;
 import com.abhishekojha.kurakanimonolith.modules.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.sql.Update;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -152,7 +153,7 @@ public class RoomServiceImpl implements RoomService {
 
     @Override
     @Transactional
-    public RoomDto updateRoom(Long roomId, AddUsersToRoomDto addUsersToRoomDto) {
+    public RoomDto dmToRoom(Long roomId, AddUsersToRoomDto addUsersToRoomDto) {
         // get request user
         User user = securityUtils.getRequestUser();
 
@@ -225,6 +226,32 @@ public class RoomServiceImpl implements RoomService {
             throw new BadRequestException("Room is not a DM or no users provided.");
         }
 
+    }
+
+    @Override
+    @Transactional
+    public RoomDto updateGroup(Long roomId, UpdateRoomDetails updateRoomDetails) {
+        log.info("Incoming request: {}", updateRoomDetails);
+        // check if the room exists
+        Room room = roomRepository.findById(roomId).orElseThrow(
+                () -> new ResourceNotFoundException("The room with id:" + roomId));
+
+        if (updateRoomDetails.getName() != null || updateRoomDetails.getName().isEmpty()) {
+            room.setName(updateRoomDetails.getName());
+        }
+
+        if (updateRoomDetails.getDescription() != null || updateRoomDetails.getDescription().isEmpty()) {
+            room.setDescription(updateRoomDetails.getDescription());
+        }
+
+        if (updateRoomDetails.getUserId() != null) {
+            List<Long> userId = updateRoomDetails.getUserId();
+            addUserToRoomGroup(
+                    AddUsersToRoomDto.builder()
+                            .userIds(userId).build(), roomId
+            );
+        }
+        return roomMapper.toDto(room);
     }
 
     @Override

@@ -14,7 +14,9 @@ public interface RoomService {
 
     RoomDto createRoomDm(Long userId);
 
-    RoomDto updateRoom(Long roomId, AddUsersToRoomDto addUsersToRoomDto);
+    RoomDto dmToRoom(Long roomId, AddUsersToRoomDto addUsersToRoomDto);
+
+    RoomDto updateGroup(Long roomId, UpdateRoomDetails updateRoomDetails);
 
     List<RoomListDto> getRooms();
 

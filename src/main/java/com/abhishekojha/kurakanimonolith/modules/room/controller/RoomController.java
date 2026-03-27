@@ -94,21 +94,21 @@ public class RoomController {
         return new ResponseEntity<>(roomDm, HttpStatus.CREATED);
     }
 
-    @Operation(summary = "Add users to a room", description = "Adds one or more users to an existing room by their IDs.")
-    @ApiResponses({
-            @ApiResponse(responseCode = "204", description = "Users added successfully"),
-            @ApiResponse(responseCode = "400", description = "Invalid request body or empty user list"),
-            @ApiResponse(responseCode = "401", description = "Not authenticated"),
-            @ApiResponse(responseCode = "404", description = "Room or one or more users not found")
-    })
-    @PostMapping("/room/{room_id}/add")
-    public ResponseEntity<Void> addUsersToRoom(
-            @Valid @RequestBody AddUsersToRoomDto addUsersToRoomDto,
-            @PathVariable Long room_id
-    ) {
-        roomService.addUserToRoomGroup(addUsersToRoomDto, room_id);
-        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
-    }
+//    @Operation(summary = "Add users to a room", description = "Adds one or more users to an existing room by their IDs.")
+//    @ApiResponses({
+//            @ApiResponse(responseCode = "204", description = "Users added successfully"),
+//            @ApiResponse(responseCode = "400", description = "Invalid request body or empty user list"),
+//            @ApiResponse(responseCode = "401", description = "Not authenticated"),
+//            @ApiResponse(responseCode = "404", description = "Room or one or more users not found")
+//    })
+//    @PostMapping("/room/{room_id}/add")
+//    public ResponseEntity<Void> addUsersToRoom(
+//            @Valid @RequestBody AddUsersToRoomDto addUsersToRoomDto,
+//            @PathVariable Long room_id
+//    ) {
+//        roomService.addUserToRoomGroup(addUsersToRoomDto, room_id);
+//        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+//    }
 
     @Operation(summary = "Upgrade a DM to a group room", description = "Converts an existing DM room into a group by adding more users to it.")
     @ApiResponses({
@@ -122,9 +122,31 @@ public class RoomController {
             @PathVariable Long roomId,
             @RequestBody AddUsersToRoomDto userIds
     ) {
-        RoomDto updatedRoom = roomService.updateRoom(roomId, userIds);
+        RoomDto updatedRoom = roomService.dmToRoom(roomId, userIds);
         return new ResponseEntity<>(updatedRoom, HttpStatus.OK);
     }
+
+    @Operation(
+            summary = "Update a room details",
+            description = "Adds one or more users to an existing room by their IDs and change name and description"
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Room updated successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid request body or empty user list"),
+            @ApiResponse(responseCode = "401", description = "Not authenticated"),
+            @ApiResponse(responseCode = "403", description = "Not authorized to update this room"),
+            @ApiResponse(responseCode = "404", description = "Room or one or more users not found"),
+            @ApiResponse(responseCode = "409", description = "Conflict - duplicate members or room name")
+    })
+    @PostMapping("/room/{roomId}")
+    public ResponseEntity<RoomDto> updateRoomDetails(
+            @RequestBody UpdateRoomDetails request,
+            @PathVariable Long roomId
+    ) {
+        RoomDto roomDto = roomService.updateGroup(roomId, request);
+        return ResponseEntity.ok(roomDto);
+    }
+
 
     @Operation(summary = "Remove users from a room", description = "Removes one or more members from a room by their member IDs.")
     @ApiResponses({
