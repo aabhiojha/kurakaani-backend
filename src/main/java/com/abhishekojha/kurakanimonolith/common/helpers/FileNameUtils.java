@@ -6,6 +6,9 @@ import java.util.UUID;
 public class FileNameUtils {
 
     public static String normalize(String originalFilename) {
+        if (originalFilename == null || originalFilename.isBlank()) {
+            return UUID.randomUUID().toString();
+        }
 
         // remove path info
         String fileName = originalFilename.replaceAll("\\\\", "/");
@@ -24,7 +27,6 @@ public class FileNameUtils {
         // remove unsafe characters
         fileName = fileName.replaceAll("[^a-z0-9._-]", "");
 
-        // add unique prefix
-        return UUID.randomUUID() + "-" + fileName;
+        return fileName;
     }
 }

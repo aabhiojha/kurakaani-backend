@@ -1,5 +1,6 @@
 package com.abhishekojha.kurakanimonolith.common.objectStorage;
 
+import com.abhishekojha.kurakanimonolith.common.helpers.FileNameUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -31,9 +32,23 @@ public class S3Operations {
     @Value("${storage.bucket}")
     private String bucket;
 
+    @Value("${storage.presigned-get-expiry-minutes:15}")
+    private long presignedGetExpiryMinutes;
+
+//    chat/
+//        dm/
+//            conversationId/
+//                images/
+//                files/
+//        group/
+//             roomId/
+//                  images/
+//                  files/
+//        profileImages/
     // upload and return the key
     public String uploadFile(MultipartFile file, String folder) throws IOException {
-        String key = folder + "/" + UUID.randomUUID() + "_" + file.getOriginalFilename();
+        String normalizedFileName = FileNameUtils.normalize(file.getOriginalFilename());
+        String key = folder + "/" + UUID.randomUUID() + "_" + normalizedFileName;
 
         s3Client.putObject(
                 PutObjectRequest.builder()
@@ -59,10 +74,6 @@ public class S3Operations {
         log.info("Deleted file from s3: {}", key);
     }
 
-    public String generatePublicUrl(String key, String bucket) {
-        return endpoint + "/" + bucket + "/" + key;
-    }
-
     //    Generates a pre-signed URL valid for the given duration.
     public String getPresignedUrl(String key, Duration expiry) {
         String url = s3Presigner.presignGetObject(
@@ -77,5 +88,21 @@ public class S3Operations {
 
         log.debug("Generated presigned URL for key: {}", key);
         return url;
+    }
+
+    public String getProfileImageAccessUrl(String key) {
+        if (key == null || key.isBlank()) {
+            return null;
+        }
+
+        if (key.startsWith("http://") || key.startsWith("https://")) {
+            return key;
+        }
+
+        return getPresignedUrl(key, Duration.ofMinutes(presignedGetExpiryMinutes));
+    }
+
+    public String getMediaAccessUrl(String key) {
+        return getProfileImageAccessUrl(key);
     }
 }

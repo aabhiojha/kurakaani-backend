@@ -4,6 +4,8 @@ import com.abhishekojha.kurakanimonolith.common.exception.exceptions.BadRequestE
 import com.abhishekojha.kurakanimonolith.common.exception.exceptions.DuplicateResourceException;
 import com.abhishekojha.kurakanimonolith.common.exception.exceptions.ResourceNotFoundException;
 import com.abhishekojha.kurakanimonolith.common.exception.exceptions.UnauthorizedException;
+import com.abhishekojha.kurakanimonolith.common.objectStorage.S3Operations;
+import com.abhishekojha.kurakanimonolith.modules.message.model.MessageType;
 import com.abhishekojha.kurakanimonolith.common.security.SecurityUtils;
 import com.abhishekojha.kurakanimonolith.modules.room.dto.*;
 import com.abhishekojha.kurakanimonolith.modules.room.dto.roomList.RecentMessageDto;
@@ -40,6 +42,7 @@ public class RoomServiceImpl implements RoomService {
     private final UserRepository userRepository;
     private final RoomMemberRepository roomMemberRepository;
     private final RoomMemberMapper roomMemberMapper;
+    private final S3Operations s3Operations;
 
     @Override
     @Transactional
@@ -111,8 +114,16 @@ public class RoomServiceImpl implements RoomService {
                 .collect(Collectors.toMap(recentMessageDto -> recentMessageDto.getRoomId(), msg -> msg));
 
         rooms.forEach(
-                room -> room.setRecentMessage(
-                        recentMessagesByRoomId.get(room.getId())));
+                room -> {
+                    RecentMessageDto recentMessage = recentMessagesByRoomId.get(room.getId());
+                    if (recentMessage != null
+                            && (recentMessage.getContent() == null || recentMessage.getContent().isBlank())
+                            && recentMessage.getMessageType() != null
+                            && recentMessage.getMessageType() != MessageType.TEXT) {
+                        recentMessage.setContent(recentMessage.getMessageType() == MessageType.IMAGE ? "Sent an image" : "Sent a video");
+                    }
+                    room.setRecentMessage(recentMessage);
+                });
 
         return rooms;
     }
@@ -120,7 +131,16 @@ public class RoomServiceImpl implements RoomService {
     @Override
     public List<RoomMessageDto> getAllMessagesForRoom(Long roomId) {
         // ill have to write a custom repo method for getting data in roommessagedto
-        return roomRepository.getMessagesForRoom(roomId);
+        return roomRepository.getMessagesForRoom(roomId).stream()
+                .peek(message -> {
+                    if (message.getUserInfo() != null) {
+                        message.getUserInfo().setProfileImageUrl(
+                                s3Operations.getProfileImageAccessUrl(message.getUserInfo().getProfileImageUrl())
+                        );
+                    }
+                    message.setMediaUrl(s3Operations.getMediaAccessUrl(message.getMediaUrl()));
+                })
+                .toList();
     }
 
     @Override

@@ -1,6 +1,5 @@
 package com.abhishekojha.kurakanimonolith.modules.message.dto;
 
-import com.abhishekojha.kurakanimonolith.modules.room.model.Room;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -14,5 +13,4 @@ public class MessageRequest {
 
     private Long roomId;
     private String content;
-
 }

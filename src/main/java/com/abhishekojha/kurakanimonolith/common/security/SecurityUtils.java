@@ -8,8 +8,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Component;
+
+import java.security.Principal;
 
 @Component
 @RequiredArgsConstructor
@@ -19,21 +20,37 @@ public class SecurityUtils {
     private final UserRepository userRepository;
 
     public User getRequestUser() {
+        Authentication authentication = requireAuthentication();
+        return resolveUser(authentication.getName());
+    }
+
+    public User getRequestUser(Principal principal) {
+        if (principal != null) {
+            return resolveUser(principal.getName());
+        }
+
+        Authentication authentication = requireAuthentication();
+        return resolveUser(authentication.getName());
+    }
+
+    private Authentication requireAuthentication() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated()) {
             log.warn("Security context does not contain authentication");
             throw new UnauthorizedException("The user is not authenticated.");
         }
+        return authentication;
+    }
 
-        String principal = authentication.getName();
-        log.debug("Looking up request user by principal={}", principal);
+    private User resolveUser(String principalName) {
+        log.debug("Looking up request user by principal={}", principalName);
 
-        User user = userRepository.findByUserName(principal)
-                .or(() -> userRepository.findByEmailIgnoreCase(principal))
+        User user = userRepository.findByUserName(principalName)
+                .or(() -> userRepository.findByEmailIgnoreCase(principalName))
                 .orElseThrow(() -> new ResourceNotFoundException("User not found."));
 
         if (user == null) {
-            log.warn("No AppUser found for authenticated principal={}", principal);
+            log.warn("No AppUser found for authenticated principal={}", principalName);
         } else {
             log.debug("Resolved request user: id={}, username={}, email={}",
                     user.getId(), user.getUsername(), user.getEmail());

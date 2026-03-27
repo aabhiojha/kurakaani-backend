@@ -1,19 +1,25 @@
 package com.abhishekojha.kurakanimonolith.modules.message.service;
 
+import com.abhishekojha.kurakanimonolith.common.exception.exceptions.BadRequestException;
 import com.abhishekojha.kurakanimonolith.common.exception.exceptions.ResourceNotFoundException;
 import com.abhishekojha.kurakanimonolith.common.exception.exceptions.UnauthorizedException;
+import com.abhishekojha.kurakanimonolith.common.objectStorage.S3Operations;
+import com.abhishekojha.kurakanimonolith.common.security.SecurityUtils;
+import com.abhishekojha.kurakanimonolith.modules.message.dto.MessageDto;
 import com.abhishekojha.kurakanimonolith.modules.message.dto.MessageRequest;
 import com.abhishekojha.kurakanimonolith.modules.message.mapper.MessageMapper;
 import com.abhishekojha.kurakanimonolith.modules.message.model.Message;
+import com.abhishekojha.kurakanimonolith.modules.message.model.MessageType;
 import com.abhishekojha.kurakanimonolith.modules.message.repository.MessageRepository;
 import com.abhishekojha.kurakanimonolith.modules.room.model.Room;
 import com.abhishekojha.kurakanimonolith.modules.room.repository.RoomRepository;
 import com.abhishekojha.kurakanimonolith.modules.room_member.repository.RoomMemberRepository;
 import com.abhishekojha.kurakanimonolith.modules.user.model.User;
-import com.abhishekojha.kurakanimonolith.modules.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.security.Principal;
 
@@ -26,34 +32,108 @@ public class MessageServiceImpl implements MessageService {
     private final RoomMemberRepository roomMemberRepository;
     private final SimpMessagingTemplate messagingTemplate;
     private final MessageMapper messageMapper;
-    private final UserRepository userRepository;
+    private final S3Operations s3Operations;
+    private final SecurityUtils securityUtils;
 
 
     @Override
+    @Transactional
     public void sendMessageToRoom(Long roomId, MessageRequest request, Principal principal) {
-        Room room = roomRepository.findById(roomId).orElseThrow(
-                () -> new ResourceNotFoundException("Room not found")
-        );
-        User sender = userRepository.findByUserName(principal.getName()).orElseThrow(
-                () -> new ResourceNotFoundException("User not found")
-        );
-
-        boolean isMember = roomMemberRepository.existsByRoomIdAndUserId(roomId, sender.getId());
-        if (!isMember) {
-            throw new UnauthorizedException("You are not a member of this room");
+        if (request.getContent() == null || request.getContent().isBlank()) {
+            throw new BadRequestException("Message content is required.");
         }
 
-        Message savedMessage = messageRepository.save(Message.builder()
-                .sender(sender)
-                .room(room)
-                .content(request.getContent())
-                .isEdited(Boolean.FALSE)
-                .isDeleted(Boolean.FALSE)
-                .build());
+        Room room = getAuthorizedRoom(roomId, principal);
+        User sender = getSender(principal);
+        Message savedMessage = saveMessage(room, sender, request.getContent(), MessageType.TEXT, null, null, null);
 
         messagingTemplate.convertAndSend(
                 "/topic/rooms/" + roomId,
                 messageMapper.toDto(savedMessage)
         );
+    }
+
+    @Override
+    @Transactional
+    public MessageDto sendMediaMessageToRoom(Long roomId, MultipartFile file, String content, Principal principal) {
+        if (file == null || file.isEmpty()) {
+            throw new BadRequestException("Image or video file is required.");
+        }
+
+        MessageType messageType = resolveMessageType(file.getContentType());
+        Room room = getAuthorizedRoom(roomId, principal);
+        User sender = getSender(principal);
+
+        String folder = switch (messageType) {
+            case IMAGE -> "chat/group/" + roomId + "/images";
+            case VIDEO -> "chat/group/" + roomId + "/videos";
+            default -> throw new BadRequestException("Unsupported message type.");
+        };
+
+        String mediaKey;
+        try {
+            mediaKey = s3Operations.uploadFile(file, folder);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to upload media file", e);
+        }
+
+        Message savedMessage;
+        try {
+            savedMessage = saveMessage(room, sender, content, messageType, mediaKey, file.getContentType(), file.getOriginalFilename());
+        } catch (RuntimeException e) {
+            s3Operations.deleteFile(mediaKey);
+            throw e;
+        }
+
+        MessageDto messageDto = messageMapper.toDto(savedMessage);
+        messagingTemplate.convertAndSend("/topic/rooms/" + roomId, messageDto);
+        return messageDto;
+    }
+
+    private Message saveMessage(Room room, User sender, String content, MessageType messageType, String mediaKey, String mediaContentType, String mediaFileName) {
+        return messageRepository.save(Message.builder()
+                .sender(sender)
+                .room(room)
+                .content(content)
+                .messageType(messageType)
+                .mediaKey(mediaKey)
+                .mediaContentType(mediaContentType)
+                .mediaFileName(mediaFileName)
+                .isEdited(Boolean.FALSE)
+                .isDeleted(Boolean.FALSE)
+                .build());
+    }
+
+    private Room getAuthorizedRoom(Long roomId, Principal principal) {
+        Room room = roomRepository.findById(roomId).orElseThrow(
+                () -> new ResourceNotFoundException("Room not found")
+        );
+
+        User sender = getSender(principal);
+        boolean isMember = roomMemberRepository.existsByRoomIdAndUserId(roomId, sender.getId());
+        if (!isMember) {
+            throw new UnauthorizedException("You are not a member of this room");
+        }
+        return room;
+    }
+
+    private User getSender(Principal principal) {
+        return securityUtils.getRequestUser(principal);
+    }
+
+    private MessageType resolveMessageType(String contentType) {
+        if (contentType == null || contentType.isBlank()) {
+            throw new BadRequestException("Unsupported file type.");
+        }
+
+        if (contentType.startsWith("image/")) {
+            return MessageType.IMAGE;
+        }
+
+        if (contentType.startsWith("video/")) {
+            return MessageType.VIDEO;
+        }
+
+        throw new BadRequestException("Only image and video files are supported.");
     }
 }

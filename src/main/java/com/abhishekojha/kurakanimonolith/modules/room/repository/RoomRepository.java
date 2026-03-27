@@ -41,7 +41,7 @@ public interface RoomRepository extends JpaRepository<Room, Long> {
 
     @Query("""
             SELECT new com.abhishekojha.kurakanimonolith.modules.room.dto.roomList.RecentMessageDto(
-                m.id, m.room.id, m.content, m.createdAt, m.sender.id, m.sender.userName
+                m.id, m.room.id, m.content, m.messageType, m.createdAt, m.sender.id, m.sender.userName
             )
             FROM Message m
             WHERE m.room.id IN :roomIds
@@ -55,7 +55,7 @@ public interface RoomRepository extends JpaRepository<Room, Long> {
 
     @Query("""
     SELECT new com.abhishekojha.kurakanimonolith.modules.room.dto.roomMessage.RoomMessageDto(
-        m.id, m.room.id, m.content, m.isEdited,m.isDeleted, m.createdAt, m.updatedAt,
+        m.id, m.room.id, m.content, m.messageType, m.mediaKey, m.mediaContentType, m.mediaFileName, m.isEdited,m.isDeleted, m.createdAt, m.updatedAt,
         m.sender.id, m.sender.userName, m.sender.profileImageUrl
     )
     from Message m

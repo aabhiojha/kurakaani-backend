@@ -16,7 +16,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
-import java.util.Objects;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -93,18 +92,21 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Transactional
     public void setProfilePicture(MultipartFile profilePicture) {
         User user = getAuthenticatedUser();
-        String normalizedName = FileNameUtils.normalize(Objects.requireNonNull(profilePicture.getOriginalFilename()));
-        String kurakaaniUserPicBucket = "kurakaani-profile-pics";
+        String profilePicUrl = null;
         try {
-//            s3Operations.uploadFile(profilePicture, )
-            String profilePicUrl = s3Operations.generatePublicUrl(normalizedName, kurakaaniUserPicBucket);
+            profilePicUrl = s3Operations.uploadFile(profilePicture, "profile");
             user.setProfileImageUrl(profilePicUrl);
             userRepository.save(user);
-            log.info("The user profile picture updated");
-        } catch (Exception e){
-            System.out.println("fuck off");
+            log.info("Profile picture updated for userId={}", user.getId());
+        } catch (Exception e) {
+            log.error("Exception occurred while uploading profile picture for userId={}", user.getId(), e);
+            if (profilePicUrl != null) {
+                s3Operations.deleteFile(profilePicUrl);
+            }
+            throw new RuntimeException("Failed to upload profile picture", e);
         }
     }
 
@@ -129,6 +131,7 @@ public class UserServiceImpl implements UserService {
                 .id(user.getId())
                 .userName(user.getUsername())
                 .email(user.getEmail())
+                .profileImageUrl(s3Operations.getProfileImageAccessUrl(user.getProfileImageUrl()))
                 .enabled(user.isEnabled())
                 .roles(user.getRoles().stream().map(Role::getName).toList())
                 .createdAt(user.getCreatedAt())

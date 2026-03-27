@@ -32,6 +32,19 @@ public class Message {
 
     private String content;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "message_type", nullable = false)
+    private MessageType messageType;
+
+    @Column(name = "media_key")
+    private String mediaKey;
+
+    @Column(name = "media_content_type")
+    private String mediaContentType;
+
+    @Column(name = "media_file_name")
+    private String mediaFileName;
+
     @Column(name = "is_edited",columnDefinition = "BOOLEAN DEFAULT FALSE")
     private Boolean isEdited;
 
