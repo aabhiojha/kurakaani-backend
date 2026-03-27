@@ -20,7 +20,10 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/rooms")
 @RequiredArgsConstructor
-@CrossOrigin("http://localhost:5173/")
+@CrossOrigin({
+        "http://localhost:5173/",
+        "http://192.168.1.19:5173"
+})
 @Tag(name = "Rooms", description = "Room and membership management endpoints.")
 public class RoomController {
 

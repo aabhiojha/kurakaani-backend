@@ -72,11 +72,9 @@ storage:
   endpoint: ${STORAGE_ENDPOINT:http://127.0.0.1:9000}
   access-key: ${STORAGE_ACCESS_KEY:rustfsadmin}
   secret-key: ${STORAGE_SECRET_KEY:rustfsadmin}
-  bucket: ${STORAGE_BUCKET:kurakani}
+  bucket: ${STORAGE_BUCKET:kurakaani}
 
 app:
-  frontend:
-    oauth-success-url: ${FRONTEND_OAUTH_SUCCESS_URL:http://localhost:5173/auth/callback}
   jwt:
     secret: ${JWT_SECRET}
     expiration-seconds: ${JWT_EXPIRATION_SECONDS}
