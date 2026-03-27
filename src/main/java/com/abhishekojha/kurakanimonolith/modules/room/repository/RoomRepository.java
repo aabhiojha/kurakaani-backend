@@ -20,11 +20,12 @@ public interface RoomRepository extends JpaRepository<Room, Long> {
 
     @Query("""
                 SELECT r FROM Room r
-                Join fetch  r.members rm
+                join r.members rm
                 where rm.user.id = :userId
+                and LOWER(r.name) = LOWER(:name)
             """
     )
-    List<Room> findByCreatedByAndNameIgnoreCase(@Param("user") Long userId, String name);
+    List<Room> findByCreatedByAndNameIgnoreCase(@Param("userId") Long userId, @Param("name") String name);
 
 
     @Query("""

@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -116,10 +117,114 @@ public class RoomServiceImpl implements RoomService {
 
         // check if the two users are in some dm already
         Optional<Room> existingDm = roomRepository.findExistingDm(user1.getId(), user2.getId());
-        return roomMapper.toDto(existingDm.get());
+        if (existingDm.isPresent()) {
+            return roomMapper.toDto(existingDm.get());
+        }
 
-        // na vayeko khandama
         // create a new dm with these two members
+        Room room = new Room();
+        room.setType(RoomType.DM);
+        room.setCreatedBy(user1);
+        room.setName("dm_" + Math.min(user1.getId(), user2.getId()) + "_"
+                + Math.max(user1.getId(), user2.getId()));
+
+        Room savedRoom = roomRepository.save(room);
+
+        RoomMember member1 = RoomMember.builder()
+                .room(savedRoom)
+                .user(user1)
+                .roomRole(RoomRole.MEMBER)
+                .joinedAt(LocalDateTime.now())
+                .build();
+
+        RoomMember member2 = RoomMember.builder()
+                .room(savedRoom)
+                .user(user2)
+                .roomRole(RoomRole.MEMBER)
+                .joinedAt(LocalDateTime.now())
+                .build();
+
+        List<RoomMember> members = roomMemberRepository.saveAll(List.of(member1, member2));
+        savedRoom.setMembers(members);
+
+        return roomMapper.toDto(savedRoom);
+    }
+
+    @Override
+    @Transactional
+    public RoomDto updateRoom(Long roomId, AddUsersToRoomDto addUsersToRoomDto) {
+        // get request user
+        User user = securityUtils.getRequestUser();
+
+        List<Long> userIds = addUsersToRoomDto.getUserIds();
+
+        // find the room
+        Room room = roomRepository.findById(roomId).orElseThrow(
+                () -> new ResourceNotFoundException("Room not found with id: " + roomId));
+
+        // get existing DM members
+        List<RoomMember> existingDmMembers = roomMemberRepository.findByRoom(room);
+
+        if (room.getType().equals(RoomType.DM) && !userIds.isEmpty()) {
+
+            // check if the users actually exist
+            List<User> newUsers = userRepository.findAllById(userIds);
+
+            // all the user ids from db
+            List<Long> fetchedUserIds = newUsers.stream()
+                    .map(User::getId)
+                    .toList();
+
+            // missing entries in db
+            List<Long> missingUserIds = userIds.stream()
+                    .filter(id -> !fetchedUserIds.contains(id))
+                    .toList();
+
+            // check if there are any users that do not exist in the db
+            if (!missingUserIds.isEmpty()) {
+                throw new ResourceNotFoundException("User with id '%s' not found".formatted(missingUserIds));
+            }
+
+            // merge existing DM member IDs + new user IDs, deduplicated
+            List<Long> allUserIds = Stream.concat(
+                    existingDmMembers.stream().map(rm -> rm.getUser().getId()),
+                    userIds.stream()
+            ).distinct().toList();
+
+            // fetch all users at once
+            List<User> allUsers = userRepository.findAllById(allUserIds);
+
+            // use fetchedUserIds to create RoomMember entry and
+            // create a new room with all the members including that of dm
+            Room savedRoom = roomRepository.save(
+                    Room.builder().name("Group from " + room.getName())
+                            .type(RoomType.GROUP)
+                            .createdBy(user)
+                            .build()
+            );
+
+            log.info("New group room created from DM. id={}, name={}, createdBy={}",
+                    savedRoom.getId(), savedRoom.getName(), user.getEmail());
+
+            List<RoomMember> roomMembers = null;
+//          create a new room member entry for each user
+            List<RoomMember> allRoomMembers = allUsers.stream()
+                    .map(u ->
+                            RoomMember.builder()
+                                    .room(savedRoom)
+                                    .user(u)
+                                    .roomRole(u.getId().equals(user.getId()) ? RoomRole.ADMIN : RoomRole.MEMBER)
+                                    .joinedAt(LocalDateTime.now())
+                                    .build())
+                    .toList();
+            roomMemberRepository.saveAll(allRoomMembers);
+
+            savedRoom.setMembers(allRoomMembers);
+            return roomMapper.toDto(savedRoom);
+        } else {
+            throw new BadRequestException("Room is not a DM or no users provided.");
+        }
+
     }
 
     @Override
@@ -168,7 +273,7 @@ public class RoomServiceImpl implements RoomService {
 
     @Override
     @Transactional
-    public void addUserToRoom(AddUsersToRoomDto request, Long roomId) {
+    public void addUserToRoomGroup(AddUsersToRoomDto request, Long roomId) {
         List<Long> userIds = request.getUserIds();
 
         // check if the room exists
@@ -214,7 +319,7 @@ public class RoomServiceImpl implements RoomService {
     public void removeUserFromRoom(RemoveMembersDto request, Long roomId) {
         List<Long> deleteIds = request.getMembersId();
         // check if the users actually exist
-        userRepository.deleteAllById(deleteIds);
+        roomRepository.deleteAllById(deleteIds);
 
     }
 

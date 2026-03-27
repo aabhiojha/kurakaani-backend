@@ -14,11 +14,13 @@ public interface RoomService {
 
     RoomDto createRoomDm(Long userId);
 
+    RoomDto updateRoom(Long roomId, AddUsersToRoomDto addUsersToRoomDto);
+
     List<RoomListDto> getRooms();
 
     List<RoomMessageDto> getAllMessagesForRoom(Long roomId);
 
-    void addUserToRoom(AddUsersToRoomDto addUsersToRoomDto,Long room_id);
+    void addUserToRoomGroup(AddUsersToRoomDto addUsersToRoomDto,Long room_id);
 
     void removeUserFromRoom(RemoveMembersDto removeMembersDto, Long room_id);
 

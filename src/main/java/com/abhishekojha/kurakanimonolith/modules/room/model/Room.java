@@ -4,10 +4,7 @@ import com.abhishekojha.kurakanimonolith.modules.message.model.Message;
 import com.abhishekojha.kurakanimonolith.modules.room_member.model.RoomMember;
 import com.abhishekojha.kurakanimonolith.modules.user.model.User;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -27,6 +24,7 @@ import java.util.List;
                 @UniqueConstraint(columnNames = {"name"})
         }
 )
+@Builder
 public class Room {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
