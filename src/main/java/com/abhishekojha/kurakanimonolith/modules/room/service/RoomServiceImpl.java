@@ -5,6 +5,12 @@ import com.abhishekojha.kurakanimonolith.common.exception.exceptions.DuplicateRe
 import com.abhishekojha.kurakanimonolith.common.exception.exceptions.ResourceNotFoundException;
 import com.abhishekojha.kurakanimonolith.common.exception.exceptions.UnauthorizedException;
 import com.abhishekojha.kurakanimonolith.common.objectStorage.S3Operations;
+import com.abhishekojha.kurakanimonolith.modules.friendRequest.dto.FriendsDto;
+import com.abhishekojha.kurakanimonolith.modules.friendRequest.model.Friendship;
+import com.abhishekojha.kurakanimonolith.modules.friendRequest.model.enums.FriendRequestStatus;
+import com.abhishekojha.kurakanimonolith.modules.friendRequest.repository.FriendShipRepository;
+import com.abhishekojha.kurakanimonolith.modules.friendRequest.service.FriendRequestService;
+import com.abhishekojha.kurakanimonolith.modules.friendRequest.service.FriendRequestServiceImpl;
 import com.abhishekojha.kurakanimonolith.modules.message.model.MessageType;
 import com.abhishekojha.kurakanimonolith.common.security.SecurityUtils;
 import com.abhishekojha.kurakanimonolith.modules.room.dto.*;
@@ -30,9 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -48,6 +52,8 @@ public class RoomServiceImpl implements RoomService {
     private final RoomMemberRepository roomMemberRepository;
     private final RoomMemberMapper roomMemberMapper;
     private final S3Operations s3Operations;
+    private final FriendShipRepository friendShipRepository;
+    private final FriendRequestService friendRequestService;
 
     @Override
     @Transactional
@@ -236,19 +242,20 @@ public class RoomServiceImpl implements RoomService {
         Room room = roomRepository.findById(roomId).orElseThrow(
                 () -> new ResourceNotFoundException("The room with id:" + roomId));
 
-        if (updateRoomDetails.getName() != null || updateRoomDetails.getName().isEmpty()) {
+        if (updateRoomDetails.getName() != null && !updateRoomDetails.getName().isEmpty()) {
             room.setName(updateRoomDetails.getName());
+            log.debug("The room name is updated to: {}", updateRoomDetails.getName());
         }
 
-        if (updateRoomDetails.getDescription() != null || updateRoomDetails.getDescription().isEmpty()) {
+        if (updateRoomDetails.getDescription() != null && !updateRoomDetails.getDescription().isEmpty()) {
             room.setDescription(updateRoomDetails.getDescription());
+            log.debug("The description is updated to: {}", updateRoomDetails.getDescription());
         }
 
         if (updateRoomDetails.getUserId() != null) {
             List<Long> userId = updateRoomDetails.getUserId();
-            addUserToRoomGroup(
-                    AddUsersToRoomDto.builder()
-                            .userIds(userId).build(), roomId
+            addUserToRoomGroup(AddUsersToRoomDto.builder()
+                    .userIds(userId).build(), roomId
             );
         }
         return roomMapper.toDto(room);
@@ -313,6 +320,7 @@ public class RoomServiceImpl implements RoomService {
 
         // check if the users actually exist
         List<User> usersList = userRepository.findAllById(userIds);
+        log.debug("The users from the list are fetched");
 
         // all the user ids from db
         List<Long> fetchedUserIds = usersList.stream()
@@ -337,6 +345,8 @@ public class RoomServiceImpl implements RoomService {
                         .joinedAt(LocalDateTime.now())
                         .build())
                 .toList();
+        log.debug("Room members for the room are created");
+
         List<RoomMember> roomMembers = roomMemberRepository.saveAll(newMembers);
         log.info("The room members {} are added in the room", roomMembers);
     }
@@ -354,5 +364,26 @@ public class RoomServiceImpl implements RoomService {
     @Transactional
     public void deleteRoom() {
 
+    }
+
+    @Override
+    @Transactional
+    public List<FriendsDto> getAllAddableFriends(Long roomId) {
+        Room room = roomRepository.findById(roomId)
+                .orElseThrow(() -> new ResourceNotFoundException("Room not found, id: " + roomId));
+
+        securityUtils.getRequestUser(); // still validates auth
+
+        List<FriendsDto> friends = friendRequestService.getFriends();
+
+        // collect userIds already in the room
+        Set<Long> memberUserIds = room.getMembers().stream()
+                .map(member -> member.getUser().getId())
+                .collect(Collectors.toSet());
+
+        // return friends who are NOT already in the room
+        return friends.stream()
+                .filter(friend -> !memberUserIds.contains(friend.getUserId()))
+                .toList();
     }
 }

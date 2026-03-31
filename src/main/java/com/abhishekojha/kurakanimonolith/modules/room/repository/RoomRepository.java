@@ -67,9 +67,6 @@ public interface RoomRepository extends JpaRepository<Room, Long> {
             """)
     List<RoomMessageDto> getMessagesForRoom(@Param("roomId") Long roomId);
 
-    List<Room> findByTypeAndMembersContaining(RoomType type, List<RoomMember> members);
-
-
     @Query("""
                 SELECT r
                 from Room r
@@ -81,4 +78,5 @@ public interface RoomRepository extends JpaRepository<Room, Long> {
                 and count(rm) = 2
             """)
     Optional<Room> findExistingDm(@Param("userId1") Long userId1, @Param("userId2") Long userId2);
+
 }

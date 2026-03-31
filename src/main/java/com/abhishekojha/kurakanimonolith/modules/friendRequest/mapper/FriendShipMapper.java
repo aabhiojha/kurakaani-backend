@@ -15,7 +15,9 @@ import java.util.List;
 public interface FriendShipMapper {
 
     @Mapping(source = "requester", target = "requesterId", qualifiedByName = "toRequesterId")
+    @Mapping(source = "requester", target = "requesterName", qualifiedByName = "toRequesterName")
     @Mapping(source = "recipient", target = "recipientId", qualifiedByName = "toRecipientId")
+    @Mapping(source = "recipient", target = "recipientName", qualifiedByName = "toRecipientName")
     FriendShipDto toDto(Friendship friendship);
 
     List<FriendShipDto> toListDto(List<Friendship> friendship);
@@ -25,8 +27,20 @@ public interface FriendShipMapper {
         return requester.getId();
     }
 
+    @Named("toRequesterName")
+    default String mapToRequesterName(User requester) {
+        return requester.getUsername();
+    }
+
     @Named("toRecipientId")
     default Long mapToRecipientId(User recipient) {
         return recipient.getId();
     }
+
+    @Named("toRecipientName")
+    default String mapToRecipientName(User recipient) {
+        return recipient.getUsername();
+    }
+
+
 }

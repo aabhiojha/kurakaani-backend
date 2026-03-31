@@ -1,10 +1,10 @@
 package com.abhishekojha.kurakanimonolith.modules.friendRequest.service;
 
 import com.abhishekojha.kurakanimonolith.common.exception.exceptions.BadRequestException;
-import com.abhishekojha.kurakanimonolith.common.exception.exceptions.DuplicateResourceException;
 import com.abhishekojha.kurakanimonolith.common.exception.exceptions.ResourceNotFoundException;
 import com.abhishekojha.kurakanimonolith.common.security.SecurityUtils;
 import com.abhishekojha.kurakanimonolith.modules.friendRequest.dto.FriendShipDto;
+import com.abhishekojha.kurakanimonolith.modules.friendRequest.dto.FriendsDto;
 import com.abhishekojha.kurakanimonolith.modules.friendRequest.mapper.FriendShipMapper;
 import com.abhishekojha.kurakanimonolith.modules.friendRequest.model.Friendship;
 import com.abhishekojha.kurakanimonolith.modules.friendRequest.model.enums.FriendRequestResponse;
@@ -15,8 +15,11 @@ import com.abhishekojha.kurakanimonolith.modules.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -39,7 +42,7 @@ public class FriendRequestServiceImpl implements FriendRequestService {
         Friendship friendship = Friendship.builder().requester(user).status(FriendRequestStatus.PENDING).recipient(recipient).build();
 
         // TODO: cannot send request to themself
-        if (userId.equals(user.getId())){
+        if (userId.equals(user.getId())) {
             throw new BadRequestException("User cannot send friend request to themselves");
         }
 
@@ -76,7 +79,7 @@ public class FriendRequestServiceImpl implements FriendRequestService {
 
         // we gotta send this as notification to the recipient user.
         // conditional notification sending
-        if (response == FriendRequestResponse.ACCEPT){
+        if (response == FriendRequestResponse.ACCEPT) {
             notificationService.sendFriendRequestAccepted(requester.getUsername(), friendShipMapper.toDto(save));
         } else {
             notificationService.sendFriendRequestRejected(requester.getUsername(), friendShipMapper.toDto(save));
@@ -148,7 +151,8 @@ public class FriendRequestServiceImpl implements FriendRequestService {
     }
 
     @Override
-    public List<FriendShipDto> getFriends() {
+    @Transactional
+    public List<FriendsDto> getFriends() {
         // return all the received pending requests
         User user = securityUtils.getRequestUser();
 
@@ -158,14 +162,30 @@ public class FriendRequestServiceImpl implements FriendRequestService {
                 .filter(friendship -> friendship.getStatus() == FriendRequestStatus.ACCEPTED)
                 .toList();
 
-        log.info("The friends are retrieved");
-        return friendShipMapper.toListDto(friendsList);
-    }
+        List<FriendsDto> allFriends = new ArrayList<>();
+        // check that if requester was the request user then build a new Friends dto object and append to the list
+        friendsList
+                .forEach(friend -> {
+                    if (Objects.equals(friend.getRequester().getId(), user.getId())) {
+                        allFriends.add(
+                                FriendsDto.builder()
+                                        .userId(friend.getRecipient().getId())
+                                        .username(friend.getRecipient().getUsername())
+                                        .profilePicUrl(friend.getRecipient().getProfileImageUrl())
+                                        .build());
 
-    @Override
-    public List<User> getAllUsers() {
-//        List<User> all = userRepository.findAll();
-        ;
-            return List.of();
+                    } else if (Objects.equals(friend.getRecipient().getId(), user.getId())) {
+                        allFriends.add(
+                                FriendsDto.builder()
+                                        .userId(friend.getRequester().getId())
+                                        .username(friend.getRequester().getUsername())
+                                        .profilePicUrl(friend.getRequester().getProfileImageUrl())
+                                        .build());
+
+                    }
+                });
+
+        log.info("The friends are retrieved");
+        return allFriends;
     }
 }

@@ -1,5 +1,6 @@
 package com.abhishekojha.kurakanimonolith.modules.room.service;
 
+import com.abhishekojha.kurakanimonolith.modules.friendRequest.dto.FriendsDto;
 import com.abhishekojha.kurakanimonolith.modules.room.dto.*;
 import com.abhishekojha.kurakanimonolith.modules.room.dto.roomList.RoomListDto;
 import com.abhishekojha.kurakanimonolith.modules.room.dto.roomMessage.RoomMessageDto;
@@ -27,4 +28,6 @@ public interface RoomService {
     void removeUserFromRoom(RemoveMembersDto removeMembersDto, Long room_id);
 
     void deleteRoom();
+
+    List<FriendsDto> getAllAddableFriends(Long roomId);
 }

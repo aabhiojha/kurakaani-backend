@@ -11,7 +11,9 @@ import java.time.LocalDateTime;
 public class FriendShipDto {
     private Long id;
     private Long requesterId;
+    private String requesterName;
     private Long recipientId;
+    private String recipientName;
     private FriendRequestStatus status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

@@ -19,6 +19,8 @@ public class RoomMemberDto {
     private Long roomId;
     @NotNull
     private Long userId;
+    private String username;
+    private String profileImageUrl;
     private RoomRole roomRole;
     private LocalDateTime joinedAt;
 

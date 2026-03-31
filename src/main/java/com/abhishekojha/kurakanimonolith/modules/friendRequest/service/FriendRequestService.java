@@ -1,6 +1,7 @@
 package com.abhishekojha.kurakanimonolith.modules.friendRequest.service;
 
 import com.abhishekojha.kurakanimonolith.modules.friendRequest.dto.FriendShipDto;
+import com.abhishekojha.kurakanimonolith.modules.friendRequest.dto.FriendsDto;
 import com.abhishekojha.kurakanimonolith.modules.friendRequest.model.enums.FriendRequestResponse;
 import com.abhishekojha.kurakanimonolith.modules.user.model.User;
 
@@ -13,6 +14,5 @@ public interface FriendRequestService {
     void unfriend(Long userId);
     List<FriendShipDto> getSentRequests();
     List<FriendShipDto> getIncomingRequests();
-    List<FriendShipDto> getFriends();
-    List<User> getAllUsers();
+    List<FriendsDto> getFriends();
 }

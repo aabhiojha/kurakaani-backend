@@ -2,6 +2,7 @@ package com.abhishekojha.kurakanimonolith.modules.friendRequest.controller;
 
 
 import com.abhishekojha.kurakanimonolith.modules.friendRequest.dto.FriendShipDto;
+import com.abhishekojha.kurakanimonolith.modules.friendRequest.dto.FriendsDto;
 import com.abhishekojha.kurakanimonolith.modules.friendRequest.model.enums.FriendRequestResponse;
 import com.abhishekojha.kurakanimonolith.modules.friendRequest.service.FriendRequestServiceImpl;
 import io.swagger.v3.oas.annotations.Operation;
@@ -117,8 +118,8 @@ public class FriendShipController {
             @ApiResponse(responseCode = "401", description = "Unauthorized")
     })
     @GetMapping("/friends")
-    public ResponseEntity<List<FriendShipDto>> getAllFriends() {
-        List<FriendShipDto> allFriends = friendRequestService.getFriends();
-        return new ResponseEntity<>(allFriends, HttpStatus.OK);
+    public ResponseEntity<List<FriendsDto>> getAllFriends() {
+        List<FriendsDto> friends = friendRequestService.getFriends();
+        return new ResponseEntity<>(friends, HttpStatus.OK);
     }
 }
