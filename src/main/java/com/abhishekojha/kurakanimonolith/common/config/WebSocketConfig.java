@@ -18,8 +18,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
             "http://localhost:5173",
             "http://127.0.0.1:5173",
             "https://kurakaani.me",
-            "http://192.168.1.19:5173",
-            "https://unalimentary-emilie-flamboyantly.ngrok-free.dev"
+            "http://192.168.1.19:5173"
     };
 
     private final WebSocketAuthChannelInterceptor webSocketAuthChannelInterceptor;
@@ -34,7 +33,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void configureMessageBroker(MessageBrokerRegistry config) {
 
-        config.enableSimpleBroker("/topic", "/user");
+        config.enableSimpleBroker("/topic");
         config.setApplicationDestinationPrefixes("/app");
         config.setUserDestinationPrefix("/user");
 
