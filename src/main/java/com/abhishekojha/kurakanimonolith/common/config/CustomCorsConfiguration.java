@@ -14,8 +14,7 @@ public class CustomCorsConfiguration {
     private static final List<String> ALLOWED_ORIGINS = List.of(
             "http://localhost:5173",
             "http://127.0.0.1:5173",
-            "http://192.168.1.19:5173",
-            "https://unalimentary-emilie-flamboyantly.ngrok-free.dev"
+            "http://192.168.1.19:5173"
     );
 
     @Bean
