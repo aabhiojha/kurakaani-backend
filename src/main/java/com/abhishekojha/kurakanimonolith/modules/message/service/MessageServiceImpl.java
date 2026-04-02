@@ -22,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.security.Principal;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -89,6 +90,25 @@ public class MessageServiceImpl implements MessageService {
         messagingTemplate.convertAndSend("/topic/rooms/" + roomId, messageDto);
         return messageDto;
     }
+
+    @Override
+    public List<MessageDto> searchMessagesInRoom(Long roomId, String searchText, Principal principal) {
+        getAuthorizedRoom(roomId, principal);
+        return messageRepository.fullTextSearchByRoom(roomId, searchText)
+                .stream()
+                .map(messageMapper::toDto)
+                .toList();
+    }
+
+    @Override
+    public List<MessageDto> searchMessagesAcrossRooms(Principal principal, String searchText) {
+        User user = getSender(principal);
+        return messageRepository.fullTextSearchAcrossRooms(searchText, user.getId())
+                .stream()
+                .map(messageMapper::toDto)
+                .toList();
+    }
+
 
     private Message saveMessage(Room room, User sender, String content, MessageType messageType, String mediaKey, String mediaContentType, String mediaFileName) {
         return messageRepository.save(Message.builder()

@@ -5,6 +5,7 @@ import com.abhishekojha.kurakanimonolith.modules.message.dto.MessageDto;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.security.Principal;
+import java.util.List;
 
 public interface MessageService {
     void sendMessageToRoom(
@@ -19,4 +20,9 @@ public interface MessageService {
             String content,
             Principal principal
     );
+
+
+    List<MessageDto> searchMessagesInRoom(Long roomId, String searchText, Principal principal);
+
+    List<MessageDto> searchMessagesAcrossRooms(Principal principal, String searchText);
 }

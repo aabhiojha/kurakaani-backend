@@ -60,6 +60,7 @@ spring:
 logging:
   level:
     org.springframework.security: DEBUG
+    root: info
 
 springdoc:
   api-docs:
@@ -70,9 +71,10 @@ springdoc:
 
 storage:
   endpoint: ${STORAGE_ENDPOINT:http://127.0.0.1:9000}
-  access-key: ${STORAGE_ACCESS_KEY:rustfsadmin}
-  secret-key: ${STORAGE_SECRET_KEY:rustfsadmin}
+  access-key: ${STORAGE_ACCESS_KEY:s3admin}
+  secret-key: ${STORAGE_SECRET_KEY:s3admin}
   bucket: ${STORAGE_BUCKET:kurakaani}
+  region: ${STORAGE_REGION:garage}
 
 app:
   jwt:

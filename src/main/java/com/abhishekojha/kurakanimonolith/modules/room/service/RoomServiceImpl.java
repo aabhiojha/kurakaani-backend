@@ -6,11 +6,7 @@ import com.abhishekojha.kurakanimonolith.common.exception.exceptions.ResourceNot
 import com.abhishekojha.kurakanimonolith.common.exception.exceptions.UnauthorizedException;
 import com.abhishekojha.kurakanimonolith.common.objectStorage.S3Operations;
 import com.abhishekojha.kurakanimonolith.modules.friendRequest.dto.FriendsDto;
-import com.abhishekojha.kurakanimonolith.modules.friendRequest.model.Friendship;
-import com.abhishekojha.kurakanimonolith.modules.friendRequest.model.enums.FriendRequestStatus;
-import com.abhishekojha.kurakanimonolith.modules.friendRequest.repository.FriendShipRepository;
 import com.abhishekojha.kurakanimonolith.modules.friendRequest.service.FriendRequestService;
-import com.abhishekojha.kurakanimonolith.modules.friendRequest.service.FriendRequestServiceImpl;
 import com.abhishekojha.kurakanimonolith.modules.message.model.MessageType;
 import com.abhishekojha.kurakanimonolith.common.security.SecurityUtils;
 import com.abhishekojha.kurakanimonolith.modules.room.dto.*;
@@ -30,11 +26,9 @@ import com.abhishekojha.kurakanimonolith.modules.user.model.User;
 import com.abhishekojha.kurakanimonolith.modules.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.hibernate.sql.Update;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -52,7 +46,6 @@ public class RoomServiceImpl implements RoomService {
     private final RoomMemberRepository roomMemberRepository;
     private final RoomMemberMapper roomMemberMapper;
     private final S3Operations s3Operations;
-    private final FriendShipRepository friendShipRepository;
     private final FriendRequestService friendRequestService;
 
     @Override
@@ -213,7 +206,6 @@ public class RoomServiceImpl implements RoomService {
             log.info("New group room created from DM. id={}, name={}, createdBy={}",
                     savedRoom.getId(), savedRoom.getName(), user.getEmail());
 
-            List<RoomMember> roomMembers = null;
 //          create a new room member entry for each user
             List<RoomMember> allRoomMembers = allUsers.stream()
                     .map(u ->
