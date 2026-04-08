@@ -10,6 +10,10 @@ import com.abhishekojha.kurakanimonolith.modules.friendRequest.model.Friendship;
 import com.abhishekojha.kurakanimonolith.modules.friendRequest.model.enums.FriendRequestResponse;
 import com.abhishekojha.kurakanimonolith.modules.friendRequest.model.enums.FriendRequestStatus;
 import com.abhishekojha.kurakanimonolith.modules.friendRequest.repository.FriendShipRepository;
+import com.abhishekojha.kurakanimonolith.modules.notification.enums.FriendRequestEvent;
+import com.abhishekojha.kurakanimonolith.modules.notification.enums.NotificationType;
+import com.abhishekojha.kurakanimonolith.modules.notification.payloads.FriendRequestPayload;
+import com.abhishekojha.kurakanimonolith.modules.notification.service.NotificationService;
 import com.abhishekojha.kurakanimonolith.modules.user.model.User;
 import com.abhishekojha.kurakanimonolith.modules.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -39,19 +43,24 @@ public class FriendRequestServiceImpl implements FriendRequestService {
 
         User recipient = userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        Friendship friendship = Friendship.builder().requester(user).status(FriendRequestStatus.PENDING).recipient(recipient).build();
-
         // TODO: cannot send request to themself
         if (userId.equals(user.getId())) {
             throw new BadRequestException("User cannot send friend request to themselves");
         }
 
+        Friendship friendship = Friendship.builder().requester(user).status(FriendRequestStatus.PENDING).recipient(recipient).build();
+
         // save to db
         Friendship save = friendShipRepository.save(friendship);
         log.info("The friendship object is saved in db");
 
-        // we gotta send this as notification to the recipient user.
-        notificationService.sendFriendRequestNotification(recipient.getUsername(), friendShipMapper.toDto(save));
+        notificationService.notify(recipient.getUsername(), NotificationType.FRIEND_REQUEST,
+                FriendRequestPayload.builder()
+                        .requestId(String.valueOf(save.getId()))
+                        .event(FriendRequestEvent.RECEIVED)
+                        .senderName(user.getUsername())
+                        .senderAvatar(user.getProfileImageUrl())
+                        .build());
         log.info("The friend request notification is sent to the recipient");
     }
 
@@ -77,13 +86,17 @@ public class FriendRequestServiceImpl implements FriendRequestService {
         Friendship save = friendShipRepository.save(friendship);
         log.info("The friendship request status is set successfully");
 
-        // we gotta send this as notification to the recipient user.
-        // conditional notification sending
-        if (response == FriendRequestResponse.ACCEPT) {
-            notificationService.sendFriendRequestAccepted(requester.getUsername(), friendShipMapper.toDto(save));
-        } else {
-            notificationService.sendFriendRequestRejected(requester.getUsername(), friendShipMapper.toDto(save));
-        }
+        FriendRequestEvent event = response == FriendRequestResponse.ACCEPT
+                ? FriendRequestEvent.ACCEPTED
+                : FriendRequestEvent.DECLINED;
+
+        notificationService.notify(requester.getUsername(), NotificationType.FRIEND_REQUEST,
+                FriendRequestPayload.builder()
+                        .requestId(String.valueOf(save.getId()))
+                        .event(event)
+                        .senderName(responder.getUsername())
+                        .senderAvatar(responder.getProfileImageUrl())
+                        .build());
         log.info("The request status notification is sent to the requester");
     }
 

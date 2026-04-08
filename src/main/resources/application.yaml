@@ -20,21 +20,11 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
 
-#  security:
-#    oauth2:
-#      client:
-#        registration:
-#          github:
-#            client-id: ${GITHUB_CLIENT_ID}
-#            client-secret: ${GITHUB_CLIENT_SECRET}
-#          google:
-#            client-id: ${GOOGLE_CLIENT_ID}
-#            client-secret: ${GOOGLE_CLIENT_SECRET}
-#            scope:
-#              - openid
-#              - profile
-#              - email
-#            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
   servlet:
     multipart:
       max-file-size: 10MB
@@ -71,12 +61,14 @@ springdoc:
 
 storage:
   endpoint: ${STORAGE_ENDPOINT:http://127.0.0.1:9000}
-  access-key: ${STORAGE_ACCESS_KEY:s3admin}
-  secret-key: ${STORAGE_SECRET_KEY:s3admin}
+  access-key: ${STORAGE_ACCESS_KEY:rustfsadmin}
+  secret-key: ${STORAGE_SECRET_KEY:rustfsadmin}
   bucket: ${STORAGE_BUCKET:kurakaani}
-  region: ${STORAGE_REGION:garage}
+  region: ${STORAGE_REGION:rustfs}
 
 app:
   jwt:
     secret: ${JWT_SECRET}
     expiration-seconds: ${JWT_EXPIRATION_SECONDS}
+
+

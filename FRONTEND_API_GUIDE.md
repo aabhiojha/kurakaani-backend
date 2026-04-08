@@ -1,4 +1,4 @@
-**# Frontend API Integration Guide
+# Frontend API Integration Guide
 
 ## Scope
 
@@ -7,9 +7,11 @@ This guide reflects the current backend implementation in this repository.
 The backend currently exposes:
 
 - JWT-based REST authentication
-- user profile endpoints
-- room and room-membership endpoints
-- STOMP over SockJS for live chat
+- User profile endpoints
+- Room and room-membership endpoints
+- Friend request endpoints
+- STOMP over SockJS for live chat and typing indicators
+- Real-time notifications via Redis pub/sub → WebSocket (`/user/queue/notifications`)
 - OpenAPI docs at `/docs`
 
 Useful backend references:
@@ -19,6 +21,7 @@ Useful backend references:
 - [src/main/java/com/abhishekojha/kurakanimonolith/modules/auth/controller/AuthController.java](src/main/java/com/abhishekojha/kurakanimonolith/modules/auth/controller/AuthController.java)
 - [src/main/java/com/abhishekojha/kurakanimonolith/modules/user/controller/UserController.java](src/main/java/com/abhishekojha/kurakanimonolith/modules/user/controller/UserController.java)
 - [src/main/java/com/abhishekojha/kurakanimonolith/modules/room/controller/RoomController.java](src/main/java/com/abhishekojha/kurakanimonolith/modules/room/controller/RoomController.java)
+- [src/main/java/com/abhishekojha/kurakanimonolith/modules/friendRequest/controller/FriendShipController.java](src/main/java/com/abhishekojha/kurakanimonolith/modules/friendRequest/controller/FriendShipController.java)
 - [src/main/java/com/abhishekojha/kurakanimonolith/common/config/WebSocketConfig.java](src/main/java/com/abhishekojha/kurakanimonolith/common/config/WebSocketConfig.java)
 
 ## Base URL
@@ -35,6 +38,7 @@ The backend currently allows frontend requests from:
 
 - `http://localhost:5173`
 - `http://127.0.0.1:5173`
+- `http://192.168.1.19:5173`
 - `https://kurakaani.me`
 
 ## Authentication Model
@@ -115,14 +119,13 @@ Request body:
 }
 ```
 
-Current response:
+Response:
 
 ```http
 200 OK
 ```
 
-Note:
-The controller signature returns `AuthResponse`, but the current implementation sends an empty body. The frontend should not expect a token from registration.
+Note: The frontend should not expect a token from registration — call login separately after registering.
 
 ### Login
 
@@ -152,7 +155,7 @@ Recommended frontend flow:
 1. Call `/api/auth/login`.
 2. Persist `token`, `username`, and `roles`.
 3. Attach the token to future REST requests.
-4. Use the same token for WebSocket STOMP connect headers.
+4. Use the same token in the STOMP `CONNECT` headers for WebSocket.
 
 ### Password Reset
 
@@ -199,7 +202,7 @@ Response:
 
 Requires bearer token.
 
-Example response:
+Response:
 
 ```json
 {
@@ -229,6 +232,8 @@ Request body:
 }
 ```
 
+Response: updated `UserDto` (same shape as above).
+
 ### Upload Profile Picture
 
 `POST /api/user/profilePic/upload`
@@ -249,11 +254,104 @@ Fetch `GET /api/user/me` after upload to get the latest presigned `profileImageU
 
 ### Admin User Endpoints
 
-These endpoints are intended for admins:
+These endpoints require `ADMIN` role:
 
-- `GET /api/user`
-- `GET /api/user/{userId}`
-- `DELETE /api/user/{userId}`
+- `GET /api/user` — list all users
+- `GET /api/user/{userId}` — get user by ID
+- `DELETE /api/user/{userId}` — delete user
+
+## Friend Request Endpoints
+
+All endpoints require bearer authentication.
+
+### Send Friend Request
+
+`POST /api/friend/request/{userId}`
+
+Triggers a real-time notification to the recipient via WebSocket (see [Notifications](#notifications)).
+
+Response:
+
+```http
+200 OK
+```
+
+### Respond to Friend Request
+
+`POST /api/friend/respond/{userId}/{response}`
+
+`{response}` is either `ACCEPT` or `REJECT`.
+
+Triggers a real-time notification to the requester via WebSocket.
+
+Response:
+
+```http
+200 OK
+```
+
+### Cancel Sent Friend Request
+
+`POST /api/friend/{userId}/cancel`
+
+Response:
+
+```http
+200 OK
+```
+
+### Unfriend
+
+`POST /api/friend/{userId}/unfriend`
+
+Response:
+
+```http
+200 OK
+```
+
+### Get Sent Friend Requests
+
+`GET /api/friend/requests/sent`
+
+Response:
+
+```json
+[
+  {
+    "id": 1,
+    "requesterId": 1,
+    "requesterName": "abhishek",
+    "recipientId": 2,
+    "recipientName": "ram",
+    "status": "PENDING",
+    "createdAt": "2026-03-23T16:00:00",
+    "updatedAt": "2026-03-23T16:00:00"
+  }
+]
+```
+
+### Get Incoming Friend Requests
+
+`GET /api/friend/requests`
+
+Same shape as above, filtered to requests received by the current user.
+
+### Get Friends
+
+`GET /api/friend/friends`
+
+Response:
+
+```json
+[
+  {
+    "userId": 2,
+    "username": "ram",
+    "profilePicUrl": "https://..."
+  }
+]
+```
 
 ## Room Endpoints
 
@@ -265,7 +363,7 @@ All room endpoints require bearer authentication.
 
 Returns all rooms the authenticated user is a member of, each with the most recent message.
 
-Response shape:
+Response:
 
 ```json
 [
@@ -291,15 +389,13 @@ Response shape:
 ]
 ```
 
-`recentMessage` is `null` for rooms that have no messages yet.
+`recentMessage` is `null` for rooms with no messages yet.
 
 ### Get Messages For Room
 
 `GET /api/rooms/room/{roomId}/message`
 
-Returns the full message history for a room.
-
-Response shape:
+Response:
 
 ```json
 [
@@ -324,14 +420,9 @@ Response shape:
 ]
 ```
 
-Media messages use `messageType` values `IMAGE` or `VIDEO` and return a presigned `mediaUrl`.
+Media messages use `messageType` values `IMAGE` or `VIDEO` and return a presigned `mediaUrl`. Do not cache `mediaUrl` long-term as it expires.
 
-Notes:
-
-- `content` is optional for media messages and acts like a caption.
-- `mediaUrl` is temporary because it is presigned, so the frontend should not cache it long-term.
-
-### Upload Image Or Video To Room
+### Upload Image or Video to Room
 
 `POST /api/rooms/room/{roomId}/message/media`
 
@@ -340,7 +431,7 @@ Send `multipart/form-data` with:
 - `file`: required image or video file
 - `content`: optional caption
 
-Response shape:
+Response (`201 Created`):
 
 ```json
 {
@@ -361,11 +452,27 @@ Response shape:
 
 The backend also broadcasts the same payload to `/topic/rooms/{roomId}`.
 
+### Search Messages in a Room
+
+`GET /api/rooms/{roomId}/messages/search?text={query}`
+
+Full-text search within a specific room. Only accessible to members of that room.
+
+Response: same shape as `GET /api/rooms/room/{roomId}/message`, filtered by relevance.
+
+### Search Messages Across All Rooms
+
+`GET /api/rooms/messages/search?text={query}`
+
+Full-text search across all rooms the authenticated user belongs to.
+
+Response: same shape as above.
+
 ### Get Room Members
 
 `GET /api/rooms/room/{roomId}`
 
-Response shape:
+Response:
 
 ```json
 [
@@ -378,6 +485,14 @@ Response shape:
   }
 ]
 ```
+
+### Get Addable Friends for a Room
+
+`GET /api/rooms/room/{roomId}/add/friends`
+
+Returns the current user's friends who are not already members of the given room. Use this to populate the "add members" picker.
+
+Response: same shape as `GET /api/friend/friends`.
 
 ### Create Group Room
 
@@ -402,15 +517,7 @@ Response (`201 Created`):
   "id": 1,
   "name": "General",
   "description": "Main room",
-  "members": [
-    {
-      "roomMemberId": 1,
-      "roomId": 1,
-      "userId": 1,
-      "roomRole": "ADMIN",
-      "joinedAt": "2026-03-23T16:00:00"
-    }
-  ],
+  "members": [...],
   "messages": [],
   "type": "GROUP",
   "createdById": 1,
@@ -427,11 +534,7 @@ Error responses:
 
 `POST /api/rooms/dm?userId={userId}`
 
-Query parameter:
-
-- `userId` — the ID of the user to start a DM with
-
-If a DM between the authenticated user and the target user already exists, it is returned instead of creating a new one. The frontend can call this unconditionally before opening a DM conversation.
+If a DM between the two users already exists, it is returned instead of creating a new one. Call this unconditionally before opening a DM conversation.
 
 Response (`201 Created`):
 
@@ -440,22 +543,7 @@ Response (`201 Created`):
   "id": 2,
   "name": "dm_1_3",
   "description": null,
-  "members": [
-    {
-      "roomMemberId": 3,
-      "roomId": 2,
-      "userId": 1,
-      "roomRole": "MEMBER",
-      "joinedAt": "2026-03-27T10:00:00"
-    },
-    {
-      "roomMemberId": 4,
-      "roomId": 2,
-      "userId": 3,
-      "roomRole": "MEMBER",
-      "joinedAt": "2026-03-27T10:00:00"
-    }
-  ],
+  "members": [...],
   "messages": [],
   "type": "DM",
   "createdById": 1,
@@ -464,17 +552,13 @@ Response (`201 Created`):
 }
 ```
 
-Note: `name` is auto-generated as `dm_{minUserId}_{maxUserId}` and is not meaningful to the frontend — use the member list to display participant names.
-
-Error responses:
-
-- `404 Not Found` — target user does not exist
+Note: `name` is auto-generated as `dm_{minUserId}_{maxUserId}` — use the member list to display participant names.
 
 ### Upgrade a DM to a Group Room
 
 `POST /api/rooms/room/{roomId}/group/create`
 
-Converts an existing DM into a group by adding more users to it. Use this when a user wants to turn a one-on-one conversation into a group chat.
+Converts an existing DM into a group by adding more users.
 
 Request body:
 
@@ -484,31 +568,13 @@ Request body:
 }
 ```
 
-Response (`200 OK`):
-
-```json
-{
-  "id": 2,
-  "name": "dm_1_3",
-  "description": null,
-  "members": [...],
-  "messages": [],
-  "type": "GROUP",
-  "createdById": 1,
-  "createdAt": "2026-03-27T10:00:00",
-  "updatedAt": "2026-03-27T10:00:00"
-}
-```
-
-Error responses:
-
-- `404 Not Found` — room not found
+Response (`200 OK`): updated `RoomDto` with `type: "GROUP"`.
 
 ### Update Group Room
 
-`POST /api/rooms/room/{roomId}`
+`PATCH /api/rooms/room/{roomId}`
 
-Updates a group room's name, description, and/or member list. All fields are optional — send only what needs to change.
+All fields are optional — send only what needs to change.
 
 Request body:
 
@@ -520,35 +586,7 @@ Request body:
 }
 ```
 
-Fields:
-
-- `name` — new room name (optional)
-- `description` — new description (optional)
-- `userId` — list of user IDs to add to the room (optional)
-
-Response (`200 OK`):
-
-```json
-{
-  "id": 1,
-  "name": "New Name",
-  "description": "Updated description",
-  "members": [...],
-  "messages": [],
-  "type": "GROUP",
-  "createdById": 1,
-  "createdAt": "2026-03-23T16:00:00",
-  "updatedAt": "2026-03-27T11:00:00"
-}
-```
-
-Error responses:
-
-- `400 Bad Request` — invalid request body
-- `401 Unauthorized` — not authenticated
-- `403 Forbidden` — not authorized to update this room
-- `404 Not Found` — room or one or more users not found
-- `409 Conflict` — duplicate members or room name
+Response (`200 OK`): updated `RoomDto`.
 
 ### Remove Users From Room
 
@@ -568,26 +606,18 @@ Response:
 204 No Content
 ```
 
-Important:
-The current backend implementation for removal does not behave like a proper room-membership unlink. Frontend code should treat this endpoint as unsafe until the backend logic is corrected.
-
 ## WebSocket Chat
 
-The backend exposes:
+The backend exposes a STOMP-over-SockJS endpoint.
 
-- handshake endpoint: `/ws`
-- app destination prefix: `/app`
-- broker topic prefix: `/topic`
+Broker configuration:
 
-Current chat flow:
+- Handshake endpoint: `/ws`
+- App destination prefix: `/app`
+- Broker prefixes: `/topic` (broadcast), `/queue` (user-specific)
+- User destination prefix: `/user`
 
-- connect to `/ws`
-- send `Authorization: Bearer <jwt>` in STOMP `CONNECT` headers
-- subscribe to `/topic/rooms/{roomId}`
-- publish text messages to `/app/chat.send/{roomId}`
-- upload image/video messages with `POST /api/rooms/room/{roomId}/message/media`
-
-Minimal frontend example:
+### Connecting
 
 ```ts
 import { Client } from "@stomp/stompjs";
@@ -602,16 +632,29 @@ const client = new Client({
 });
 
 client.onConnect = () => {
+  // subscribe to room messages
   client.subscribe(`/topic/rooms/${roomId}`, (frame) => {
     const message = JSON.parse(frame.body);
-    console.log("received", message);
+  });
+
+  // subscribe to typing indicators
+  client.subscribe(`/topic/rooms/${roomId}/typing`, (frame) => {
+    const event = JSON.parse(frame.body);
+    // { userId, userName, typing }
+  });
+
+  // subscribe to notifications (see Notifications section)
+  client.subscribe(`/user/queue/notifications`, (frame) => {
+    const notification = JSON.parse(frame.body);
   });
 };
 
 client.activate();
 ```
 
-Send message:
+### Send Text Message
+
+Publish to `/app/chat.send/{roomId}`:
 
 ```ts
 client.publish({
@@ -620,7 +663,7 @@ client.publish({
 });
 ```
 
-Expected message payload:
+Incoming message payload on `/topic/rooms/{roomId}`:
 
 ```json
 {
@@ -639,27 +682,108 @@ Expected message payload:
 }
 ```
 
-Expected media message payload on the same subscription:
+### Send Typing Indicator
+
+Publish to `/app/chat.typing/{roomId}`:
+
+```ts
+client.publish({
+  destination: `/app/chat.typing/${roomId}`,
+  body: JSON.stringify({ userId: 1, userName: "abhishek", typing: true })
+});
+```
+
+Incoming typing event on `/topic/rooms/{roomId}/typing`:
 
 ```json
 {
-  "id": 11,
-  "senderId": 2,
-  "roomId": 1,
-  "content": "weekend clip",
-  "messageType": "VIDEO",
-  "mediaUrl": "https://...",
-  "mediaContentType": "video/mp4",
-  "mediaFileName": "clip.mp4",
-  "isEdited": false,
-  "isDeleted": false,
-  "createdAt": "2026-03-23T16:05:00",
-  "updatedAt": "2026-03-23T16:05:00"
+  "userId": 1,
+  "userName": "abhishek",
+  "typing": true
 }
+```
+
+## Notifications
+
+After connecting via STOMP, subscribe to:
+
+```
+/user/queue/notifications
+```
+
+This channel receives real-time push notifications for friend requests and new messages. Notifications are delivered via Redis pub/sub — every app instance that has the user's WebSocket connection will forward the message.
+
+All notifications share the same envelope:
+
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "type": "FRIEND_REQUEST | DM | ROOM",
+  "timestamp": "2026-04-08T10:00:00Z",
+  "payload": { ... }
+}
+```
+
+### `FRIEND_REQUEST` payload
+
+Sent when a friend request is received, accepted, or declined.
+
+```json
+{
+  "requestId": "42",
+  "event": "RECEIVED | ACCEPTED | DECLINED",
+  "senderName": "ram",
+  "senderAvatar": "https://..."
+}
+```
+
+### `DM` payload
+
+Sent to the other participant when a new message arrives in a DM room.
+
+```json
+{
+  "messageId": "10",
+  "roomId": "2",
+  "preview": "hey, what's up?",
+  "mediaType": null
+}
+```
+
+### `ROOM` payload
+
+Sent to all room members (except the sender) when a new message arrives in a group room.
+
+```json
+{
+  "roomId": "1",
+  "roomName": "General",
+  "event": "NEW_MESSAGE",
+  "preview": "hey everyone"
+}
+```
+
+### Example notification handler
+
+```ts
+client.subscribe("/user/queue/notifications", (frame) => {
+  const notification = JSON.parse(frame.body);
+
+  switch (notification.type) {
+    case "FRIEND_REQUEST":
+      handleFriendRequestNotification(notification.payload);
+      break;
+    case "DM":
+      handleDmNotification(notification.payload);
+      break;
+    case "ROOM":
+      handleRoomNotification(notification.payload);
+      break;
+  }
+});
 ```
 
 ## Known Backend Caveats
 
-- Room member removal (`POST /api/rooms/room/{room_id}/remove`) currently deletes the users from the users table rather than unlinking them from the room. Do not use this in production until the backend logic is corrected.
-- Registration currently returns no auth payload.
-- WebSocket message send still depends on STOMP session authentication being attached correctly.**
+- Registration returns no auth payload — call login separately.
+- `mediaUrl` in message responses is presigned and expires — do not cache it long-term.
