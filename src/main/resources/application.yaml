@@ -20,11 +20,6 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
 
-  data:
-    redis:
-      host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6379}
-
   servlet:
     multipart:
       max-file-size: 10MB
@@ -37,8 +32,8 @@ spring:
   mail:
     host: smtp.gmail.com
     port: 587
-    username: ${MAIL_USERNAME}
-    password: ${MAIL_PASSWORD}
+    username: ${MAIL_USERNAME:aojha6822@gmail.com}
+    password: ${MAIL_PASSWORD:randomasspassword}
     properties:
       mail:
         smtp:
@@ -68,7 +63,6 @@ storage:
 
 app:
   jwt:
-    secret: ${JWT_SECRET}
-    expiration-seconds: ${JWT_EXPIRATION_SECONDS}
-
+    secret: ${JWT_SECRET:TOYLwSbD3s8U0SmuFuVSBWJDa0dlyoXbjSDmDgEXnEN}
+    expiration-seconds: ${JWT_EXPIRATION_SECONDS:864000}
 

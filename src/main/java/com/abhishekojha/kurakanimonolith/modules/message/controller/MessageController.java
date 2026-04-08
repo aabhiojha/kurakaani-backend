@@ -15,7 +15,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -29,7 +28,7 @@ import java.util.List;
 public class MessageController {
 
     private final MessageService messageService;
-    private final SimpMessagingTemplate messagingTemplate;
+    private final org.springframework.data.redis.core.RedisTemplate<String, Object> redisTemplate;
 
     @MessageMapping("/chat.send/{roomId}")
     public void sendMessageToRoom(
@@ -55,8 +54,7 @@ public class MessageController {
     public void handleTyping(@DestinationVariable Long roomId,
                              @Payload TypingEvent event,
                              Principal principal) {
-        messagingTemplate.convertAndSend("/topic/rooms/" + roomId + "/typing", event);
-
+        redisTemplate.convertAndSend("chat.typing." + roomId, event);
     }
 
     @Operation(summary = "Search messages in a room", description = "Full-text search for messages within a specific room. Only accessible to members of that room. Results are ranked by relevance.")

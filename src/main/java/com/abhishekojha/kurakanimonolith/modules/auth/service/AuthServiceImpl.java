@@ -46,7 +46,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Async
-    @Transactional
+//    @Transactional
     public void register(RegisterRequest request) {
         if (userRepository.existsByUserName(request.getUsername())) {
             throw new IllegalArgumentException("Username already exists");

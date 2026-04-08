@@ -12,11 +12,12 @@ import com.abhishekojha.kurakanimonolith.modules.message.model.Message;
 import com.abhishekojha.kurakanimonolith.modules.message.model.MessageType;
 import com.abhishekojha.kurakanimonolith.modules.message.repository.MessageRepository;
 import com.abhishekojha.kurakanimonolith.modules.room.model.Room;
+import com.abhishekojha.kurakanimonolith.modules.room.model.RoomType;
 import com.abhishekojha.kurakanimonolith.modules.room.repository.RoomRepository;
 import com.abhishekojha.kurakanimonolith.modules.room_member.repository.RoomMemberRepository;
 import com.abhishekojha.kurakanimonolith.modules.user.model.User;
 import lombok.RequiredArgsConstructor;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -31,27 +32,60 @@ public class MessageServiceImpl implements MessageService {
     private final RoomRepository roomRepository;
     private final MessageRepository messageRepository;
     private final RoomMemberRepository roomMemberRepository;
-    private final SimpMessagingTemplate messagingTemplate;
     private final MessageMapper messageMapper;
     private final S3Operations s3Operations;
     private final SecurityUtils securityUtils;
-
+    private final RedisTemplate<String, Object> redisTemplate;
 
     @Override
     @Transactional
     public void sendMessageToRoom(Long roomId, MessageRequest request, Principal principal) {
-        if (request.getContent() == null || request.getContent().isBlank()) {
-            throw new BadRequestException("Message content is required.");
+            if (request.getContent() == null || request.getContent().isBlank()) {
+                throw new BadRequestException("Message content is required.");
+            }
+
+            Room room = getAuthorizedRoom(roomId, principal);
+            User sender = getSender(principal);
+
+            Message savedMessage = saveMessage(
+                    room,
+                    sender,
+                    request.getContent(),
+                    MessageType.TEXT,
+                    null,
+                    null,
+                    null
+            );
+
+
+        if (room.getType() == RoomType.DM) {
+            Long senderId = sender.getId();
+            Long receiverId = room.getMembers().stream()
+                    .map(member -> member.getUser().getId())
+                    .filter(id -> !id.equals(senderId))
+                    .findFirst()
+                    .orElseThrow();
+
+            var dto = messageMapper.toDto(savedMessage);
+
+            // Send to receiver
+            redisTemplate.convertAndSend(
+                    "chat.dm.user." + receiverId,
+                    dto
+            );
+
+            // Send to sender (so sender also sees message in real-time)
+            redisTemplate.convertAndSend(
+                    "chat.dm.user." + senderId,
+                    dto
+            );
+            return;
         }
-
-        Room room = getAuthorizedRoom(roomId, principal);
-        User sender = getSender(principal);
-        Message savedMessage = saveMessage(room, sender, request.getContent(), MessageType.TEXT, null, null, null);
-
-        messagingTemplate.convertAndSend(
-                "/topic/rooms/" + roomId,
-                messageMapper.toDto(savedMessage)
+        redisTemplate.convertAndSend(
+                    "chat.group." + roomId,
+                    messageMapper.toDto(savedMessage)
         );
+
     }
 
     @Override
@@ -87,7 +121,29 @@ public class MessageServiceImpl implements MessageService {
         }
 
         MessageDto messageDto = messageMapper.toDto(savedMessage);
-        messagingTemplate.convertAndSend("/topic/rooms/" + roomId, messageDto);
+
+        if (room.getType() == RoomType.DM) {
+            Long senderId = sender.getId();
+            Long receiverId = room.getMembers().stream()
+                    .map(member -> member.getUser().getId())
+                    .filter(id -> !id.equals(senderId))
+                    .findFirst()
+                    .orElseThrow();
+
+            // Send to receiver
+            redisTemplate.convertAndSend(
+                    "chat.dm.user." + receiverId,
+                    messageDto
+            );
+
+            // Send to sender (so sender also sees message in real-time)
+            redisTemplate.convertAndSend(
+                    "chat.dm.user." + senderId,
+                    messageDto
+            );
+        } else {
+            redisTemplate.convertAndSend("chat.group." + roomId, messageDto);
+        }
         return messageDto;
     }
 

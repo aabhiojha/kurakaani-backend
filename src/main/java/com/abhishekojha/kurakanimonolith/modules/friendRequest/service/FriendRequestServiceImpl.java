@@ -54,7 +54,9 @@ public class FriendRequestServiceImpl implements FriendRequestService {
         Friendship save = friendShipRepository.save(friendship);
         log.info("The friendship object is saved in db");
 
-        notificationService.notify(recipient.getUsername(), NotificationType.FRIEND_REQUEST,
+        notificationService.notify(
+                recipient.getUsername(),
+                NotificationType.FRIEND_REQUEST,
                 FriendRequestPayload.builder()
                         .requestId(String.valueOf(save.getId()))
                         .event(FriendRequestEvent.RECEIVED)
