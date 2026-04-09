@@ -1,7 +1,6 @@
 package com.abhishekojha.kurakanimonolith.common.config;
 
 import com.abhishekojha.kurakanimonolith.common.redis.RedisSubscriber;
-import com.abhishekojha.kurakanimonolith.modules.notification.NotificationSubscriber;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
