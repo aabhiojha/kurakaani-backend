@@ -22,6 +22,7 @@ public class GlobalExceptionHandler {
             ResourceNotFoundException exception,
             HttpServletRequest request
     ) {
+        log.warn("event=resource_not_found path={} message={}", request.getRequestURI(), exception.getMessage());
         ErrorResponse response = ErrorResponse.builder()
                 .status(404)
                 .error("NOT_FOUND")
@@ -36,6 +37,7 @@ public class GlobalExceptionHandler {
             DuplicateResourceException exception,
             HttpServletRequest request
     ) {
+        log.warn("event=duplicate_resource path={} message={}", request.getRequestURI(), exception.getMessage());
         ErrorResponse response = ErrorResponse.builder()
                 .status(409)
                 .error("CONFLICT")
@@ -51,6 +53,7 @@ public class GlobalExceptionHandler {
             BadRequestException exception,
             HttpServletRequest request
     ) {
+        log.warn("event=bad_request path={} message={}", request.getRequestURI(), exception.getMessage());
         ErrorResponse response = ErrorResponse.builder()
                 .status(400)
                 .error("BAD_REQUEST")
@@ -66,6 +69,7 @@ public class GlobalExceptionHandler {
             UnauthorizedException exception,
             HttpServletRequest request
     ) {
+        log.warn("event=unauthorized path={} message={}", request.getRequestURI(), exception.getMessage());
         ErrorResponse response = ErrorResponse.builder()
                 .status(401)
                 .error("UNAUTHORIZED")
@@ -79,6 +83,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleGeneric(
             Exception ex,
             HttpServletRequest request) {
+        log.error("event=unhandled_exception path={} error={}", request.getRequestURI(), ex.getMessage(), ex);
         ErrorResponse response = ErrorResponse.builder()
                 .status(500)
                 .error("INTERNAL_SERVER_ERROR")

@@ -46,9 +46,11 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Async
-//    @Transactional
     public void register(RegisterRequest request) {
+        log.debug("event=register_attempt username={}", request.getUsername());
+
         if (userRepository.existsByUserName(request.getUsername())) {
+            log.warn("event=register_rejected reason=username_taken username={}", request.getUsername());
             throw new IllegalArgumentException("Username already exists");
         }
 
@@ -65,17 +67,20 @@ public class AuthServiceImpl implements AuthService {
 
         // Save to database
         userRepository.save(user);
+        log.info("event=user_registered userId={} username={}", user.getId(), user.getUsername());
 
         // Generate JWT for immediate login after registration
         var jwt = jwtService.generateToken(user);
 
         List<String> roles = user.getRoles().stream().map(Role::getName).toList();
         publisher.publishEvent(new UserRegisteredEvent(user));
+        log.debug("event=user_registered_event_published userId={}", user.getId());
         new AuthResponse(jwt, user.getUsername(), roles);
     }
 
     public AuthResponse authenticate(AuthRequest request) {
-        // Let Spring Security validate credentials
+        log.debug("event=authenticate_attempt username={}", request.getUsername());
+
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
                         request.getUsername(),
@@ -83,15 +88,14 @@ public class AuthServiceImpl implements AuthService {
                 )
         );
 
-        // If we get here, credentials are valid
         var user = userRepository.findByUserName(request.getUsername())
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
-        // Generate and return JWT
         var jwt = jwtService.generateToken(user);
         List<String> roles = user.getRoles().stream()
                 .map(Role::getName)
                 .toList();
+        log.info("event=authenticate_success userId={} username={}", user.getId(), user.getUsername());
         return new AuthResponse(jwt, user.getUsername(), roles);
     }
 
@@ -100,14 +104,16 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public void password_reset(PasswordResetDTO passwordResetDTO) {
         String email = passwordResetDTO.getEmail();
+        log.debug("event=password_reset_attempt email={}", email);
+
         User user = userRepository.findByEmailIgnoreCase(email).orElse(null);
         if (user == null) {
-            log.debug("The requested user does not exist {}", email);
+            log.warn("event=password_reset_ignored reason=user_not_found email={}", email);
             return;
         }
 
-//        check if the otp is already sent/ in the database
         Optional<PasswordResetToken> existingToken = passwordResetTokenRepository.findFirstByUserOrderByIdDesc(user);
+        boolean isReissue = existingToken.isPresent();
         PasswordResetToken pst = existingToken.orElseGet(() -> PasswordResetToken.builder()
                 .user(user)
                 .build());
@@ -116,34 +122,40 @@ public class AuthServiceImpl implements AuthService {
         pst.setExpiresAt(LocalDateTime.now().plusMinutes(30));
         pst.setUsed(false);
 
-        PasswordResetToken save = passwordResetTokenRepository.save(pst);
-        log.debug("The password reset token is saved: {}", save);
+        passwordResetTokenRepository.save(pst);
+        log.info("event=password_reset_token_issued userId={} reissued={}", user.getId(), isReissue);
+
         publisher.publishEvent(new PasswordResetEvent(user.getEmail(), pst.getToken()));
+        log.debug("event=password_reset_event_published userId={}", user.getId());
     }
 
     @Async
     @Transactional
     @Override
     public void password_reset_confirm(PasswordResetConfirmDTO passwordResetConfirmDTO) {
-        // get the token from password reset token table
+        log.debug("event=password_reset_confirm_attempt");
+
         PasswordResetToken token = passwordResetTokenRepository.findByToken(passwordResetConfirmDTO.getToken());
         if (token == null) {
-            log.debug("The token is not valid");
+            log.warn("event=password_reset_confirm_rejected reason=token_not_found");
             return;
         }
 
-        log.debug("The token is retrieved from db");
-
-        if (token.getToken().equals(passwordResetConfirmDTO.getToken())) {
-            log.debug("The token is valid");
-            // update the user password to the provided password
-            User user = token.getUser();
-            String encodedPassword = passwordEncoder.encode(passwordResetConfirmDTO.getPassword());
-            user.setPassword(encodedPassword);
-
-            publisher.publishEvent(new PasswordResetConfirmEvent(user));
-        } else {
-            log.debug("Invalid Token");
+        if (token.getUsed()) {
+            log.warn("event=password_reset_confirm_rejected reason=token_already_used userId={}", token.getUser().getId());
+            return;
         }
+
+        if (token.getExpiresAt().isBefore(LocalDateTime.now())) {
+            log.warn("event=password_reset_confirm_rejected reason=token_expired userId={}", token.getUser().getId());
+            return;
+        }
+
+        User user = token.getUser();
+        user.setPassword(passwordEncoder.encode(passwordResetConfirmDTO.getPassword()));
+        log.info("event=password_reset_confirmed userId={}", user.getId());
+
+        publisher.publishEvent(new PasswordResetConfirmEvent(user));
+        log.debug("event=password_reset_confirm_event_published userId={}", user.getId());
     }
 }

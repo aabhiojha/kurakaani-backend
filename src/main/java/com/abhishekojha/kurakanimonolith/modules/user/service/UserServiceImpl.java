@@ -27,24 +27,26 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(readOnly = true)
     public List<UserDto> getAllUsers() {
-        log.debug("Fetching all users");
-        return userRepository.findAll().stream()
+        log.debug("event=get_all_users_attempt");
+        List<UserDto> users = userRepository.findAll().stream()
                 .map(this::toDto)
                 .toList();
+        log.info("event=get_all_users_done count={}", users.size());
+        return users;
     }
 
     @Override
     @Transactional(readOnly = true)
     public UserDto getCurrentUser() {
         User user = getAuthenticatedUser();
-        log.debug("Fetching current user profile for userId={}", user.getId());
+        log.debug("event=get_current_user userId={}", user.getId());
         return toDto(user);
     }
 
     @Override
     @Transactional(readOnly = true)
     public UserDto getUserById(Long userId) {
-        log.debug("Fetching user by id: {}", userId);
+        log.debug("event=get_user_by_id_attempt userId={}", userId);
         return toDto(findUserById(userId));
     }
 
@@ -52,59 +54,58 @@ public class UserServiceImpl implements UserService {
     @Transactional
     public UserDto updateCurrentUser(UpdateUserDto updateUserDto) {
         User user = getAuthenticatedUser();
-        log.debug("Updating profile for userId={}", user.getId());
+        log.debug("event=update_user_attempt userId={}", user.getId());
 
         if (updateUserDto.getUserName() != null && !updateUserDto.getUserName().isBlank()) {
             userRepository.findByUserName(updateUserDto.getUserName())
                     .filter(existingUser -> !existingUser.getId().equals(user.getId()))
                     .ifPresent(existingUser -> {
-                        log.debug("Username update rejected for userId={} because username already exists: {}", user.getId(), updateUserDto.getUserName());
+                        log.warn("event=update_user_rejected reason=username_taken userId={} username={}", user.getId(), updateUserDto.getUserName());
                         throw new IllegalArgumentException("Username already exists.");
                     });
             user.setUserName(updateUserDto.getUserName());
-            log.debug("Updated username for userId={} to {}", user.getId(), updateUserDto.getUserName());
         }
 
         if (updateUserDto.getEmail() != null && !updateUserDto.getEmail().isBlank()) {
             userRepository.findByEmailIgnoreCase(updateUserDto.getEmail())
                     .filter(existingUser -> !existingUser.getId().equals(user.getId()))
                     .ifPresent(existingUser -> {
-                        log.debug("Email update rejected for userId={} because email already exists: {}", user.getId(), updateUserDto.getEmail());
+                        log.warn("event=update_user_rejected reason=email_taken userId={} email={}", user.getId(), updateUserDto.getEmail());
                         throw new IllegalArgumentException("Email already exists.");
                     });
             user.setEmail(updateUserDto.getEmail());
-            log.debug("Updated email for userId={} to {}", user.getId(), updateUserDto.getEmail());
         }
 
         User savedUser = userRepository.save(user);
-        log.debug("User profile updated for userId={}", savedUser.getId());
+        log.info("event=update_user_success userId={}", savedUser.getId());
         return toDto(savedUser);
     }
-
-
 
     @Override
     @Transactional
     public void deleteUser(Long userId) {
+        log.debug("event=delete_user_attempt userId={}", userId);
         User user = findUserById(userId);
         userRepository.delete(user);
-        log.debug("Deleted user with id={}", userId);
+        log.info("event=delete_user_success userId={}", userId);
     }
 
     @Override
     @Transactional
     public void setProfilePicture(MultipartFile profilePicture) {
         User user = getAuthenticatedUser();
+        log.debug("event=set_profile_picture_attempt userId={} contentType={} fileSize={}", user.getId(), profilePicture.getContentType(), profilePicture.getSize());
         String profilePicUrl = null;
         try {
             profilePicUrl = s3Operations.uploadFile(profilePicture, "profile");
             user.setProfileImageUrl(profilePicUrl);
             userRepository.save(user);
-            log.info("Profile picture updated for userId={}", user.getId());
+            log.info("event=set_profile_picture_success userId={} mediaKey={}", user.getId(), profilePicUrl);
         } catch (Exception e) {
-            log.error("Exception occurred while uploading profile picture for userId={}", user.getId(), e);
+            log.error("event=set_profile_picture_failed userId={} error={}", user.getId(), e.getMessage(), e);
             if (profilePicUrl != null) {
                 s3Operations.deleteFile(profilePicUrl);
+                log.debug("event=profile_picture_upload_rolled_back userId={} mediaKey={}", user.getId(), profilePicUrl);
             }
             throw new RuntimeException("Failed to upload profile picture", e);
         }
@@ -114,14 +115,14 @@ public class UserServiceImpl implements UserService {
         User user = (User) SecurityContextHolder.getContext()
                 .getAuthentication()
                 .getPrincipal();
-        log.debug("Authenticated user resolved with id={}", user.getId());
+        log.debug("event=authenticated_user_resolved userId={}", user.getId());
         return user;
     }
 
     private User findUserById(Long userId) {
         return userRepository.findById(userId)
                 .orElseThrow(() -> {
-                    log.debug("User lookup failed for id={}", userId);
+                    log.warn("event=user_not_found userId={}", userId);
                     return new ResourceNotFoundException("User not found with id: " + userId);
                 });
     }

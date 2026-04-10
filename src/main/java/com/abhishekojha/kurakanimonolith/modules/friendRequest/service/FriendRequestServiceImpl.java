@@ -38,21 +38,20 @@ public class FriendRequestServiceImpl implements FriendRequestService {
 
     @Override
     public void sendFriendRequest(Long userId) {
-
         User user = securityUtils.getRequestUser();
+        log.debug("event=send_friend_request_attempt requesterId={} recipientId={}", user.getId(), userId);
 
-        User recipient = userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
-
-        // TODO: cannot send request to themself
         if (userId.equals(user.getId())) {
+            log.warn("event=send_friend_request_rejected reason=self_request userId={}", user.getId());
             throw new BadRequestException("User cannot send friend request to themselves");
         }
 
+        User recipient = userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
         Friendship friendship = Friendship.builder().requester(user).status(FriendRequestStatus.PENDING).recipient(recipient).build();
 
-        // save to db
         Friendship save = friendShipRepository.save(friendship);
-        log.info("The friendship object is saved in db");
+        log.info("event=friend_request_sent friendshipId={} requesterId={} recipientId={}", save.getId(), user.getId(), recipient.getId());
 
         notificationService.notify(
                 recipient.getUsername(),
@@ -63,30 +62,25 @@ public class FriendRequestServiceImpl implements FriendRequestService {
                         .senderName(user.getUsername())
                         .senderAvatar(user.getProfileImageUrl())
                         .build());
-        log.info("The friend request notification is sent to the recipient");
+        log.debug("event=friend_request_notification_sent friendshipId={} recipientId={}", save.getId(), recipient.getId());
     }
 
     @Override
     public void respondToFriendRequest(Long userId, FriendRequestResponse response) {
-
-        // the one responding to the request
         User responder = securityUtils.getRequestUser();
-        log.debug("Request responding user: {}", responder.getId());
+        log.debug("event=respond_friend_request_attempt responderId={} requesterId={} response={}", responder.getId(), userId, response);
 
-        // the one who sent the request
         User requester = userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
-        log.debug("Request sending user: {}", requester.getId());
 
-        // get the friendship object the user need to respond to
         Friendship friendship = friendShipRepository.findByRequesterAndRecipient(requester, responder);
-        log.info("The friendship object is retrieved");
 
-        friendship.setStatus(response == FriendRequestResponse.ACCEPT ?
-                FriendRequestStatus.ACCEPTED :
-                FriendRequestStatus.REJECTED);
+        FriendRequestStatus newStatus = response == FriendRequestResponse.ACCEPT
+                ? FriendRequestStatus.ACCEPTED
+                : FriendRequestStatus.REJECTED;
+        friendship.setStatus(newStatus);
 
         Friendship save = friendShipRepository.save(friendship);
-        log.info("The friendship request status is set successfully");
+        log.info("event=friend_request_responded friendshipId={} requesterId={} responderId={} status={}", save.getId(), requester.getId(), responder.getId(), newStatus);
 
         FriendRequestEvent event = response == FriendRequestResponse.ACCEPT
                 ? FriendRequestEvent.ACCEPTED
@@ -99,87 +93,73 @@ public class FriendRequestServiceImpl implements FriendRequestService {
                         .senderName(responder.getUsername())
                         .senderAvatar(responder.getProfileImageUrl())
                         .build());
-        log.info("The request status notification is sent to the requester");
+        log.debug("event=friend_request_response_notification_sent friendshipId={} requesterId={}", save.getId(), requester.getId());
     }
 
     @Override
     public void cancelFriendRequest(Long userId) {
         User user = securityUtils.getRequestUser();
+        log.debug("event=cancel_friend_request_attempt requesterId={} recipientId={}", user.getId(), userId);
 
-        // the one who sent the request
         User recipient = userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        // get the friendship object the user need to respond to
         Friendship friendship = friendShipRepository.findByRequesterAndRecipient(user, recipient);
-        log.info("The friendship object is found");
-
-        // for cancel request we delete the friendship request
         friendShipRepository.delete(friendship);
-        log.info("The friendship object is deleted successfully");
+        log.info("event=friend_request_cancelled requesterId={} recipientId={}", user.getId(), userId);
     }
 
     @Override
     public void unfriend(Long userId) {
         User user = securityUtils.getRequestUser();
+        log.debug("event=unfriend_attempt userId={} targetUserId={}", user.getId(), userId);
 
-        // the one who sent the request
         User recipient = userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        // get the friendship object the user need to respond to
         Friendship friendship = friendShipRepository.findByRequesterAndRecipient(user, recipient);
-
-        // delete the friendship request by itself
-        // for cancel request we delete the friendship request
         friendShipRepository.delete(friendship);
-        log.info("The friendship object is deleted successfully");
+        log.info("event=unfriend_success userId={} targetUserId={}", user.getId(), userId);
     }
 
     @Override
+    @Transactional
     public List<FriendShipDto> getSentRequests() {
-
-        // return all the request pending objects
         User user = securityUtils.getRequestUser();
+        log.debug("event=get_sent_requests_attempt userId={}", user.getId());
 
-        List<Friendship> friendships = friendShipRepository.findByRequester(user);
-
-        List<Friendship> sentRequests = friendships.stream()
+        List<Friendship> sentRequests = friendShipRepository.findByRequester(user).stream()
                 .filter(friendship -> friendship.getStatus() == FriendRequestStatus.PENDING)
                 .toList();
 
-        log.info("The pending requests are retrieved");
+        log.info("event=get_sent_requests_done userId={} count={}", user.getId(), sentRequests.size());
         return friendShipMapper.toListDto(sentRequests);
     }
 
     @Override
+    @Transactional
     public List<FriendShipDto> getIncomingRequests() {
-        // return all the received pending requests
         User user = securityUtils.getRequestUser();
+        log.debug("event=get_incoming_requests_attempt userId={}", user.getId());
 
-        List<Friendship> friendshipRequests = friendShipRepository.findByRecipient(user);
-
-        List<Friendship> incomingRequests = friendshipRequests.stream()
+        List<Friendship> incomingRequests = friendShipRepository.findByRecipient(user).stream()
                 .filter(friendship -> friendship.getStatus() == FriendRequestStatus.PENDING)
                 .toList();
 
-        log.info("The incoming requests are retrieved");
+        log.info("event=get_incoming_requests_done userId={} count={}", user.getId(), incomingRequests.size());
         return friendShipMapper.toListDto(incomingRequests);
     }
 
     @Override
     @Transactional
     public List<FriendsDto> getFriends() {
-        // return all the received pending requests
         User user = securityUtils.getRequestUser();
+        log.debug("event=get_friends_attempt userId={}", user.getId());
 
         List<Friendship> allFriendshipObjs = friendShipRepository.findByRequesterOrRecipientAndStatus(user, user, FriendRequestStatus.ACCEPTED);
 
-        List<Friendship> friendsList = allFriendshipObjs.stream()
-                .filter(friendship -> friendship.getStatus() == FriendRequestStatus.ACCEPTED)
-                .toList();
-
         List<FriendsDto> allFriends = new ArrayList<>();
-        // check that if requester was the request user then build a new Friends dto object and append to the list
-        friendsList
+        // check if requester was the request user then build a new Friends dto object and append to the list
+        allFriendshipObjs.stream()
+                .filter(friendship -> friendship.getStatus() == FriendRequestStatus.ACCEPTED)
                 .forEach(friend -> {
                     if (Objects.equals(friend.getRequester().getId(), user.getId())) {
                         allFriends.add(
@@ -188,7 +168,6 @@ public class FriendRequestServiceImpl implements FriendRequestService {
                                         .username(friend.getRecipient().getUsername())
                                         .profilePicUrl(friend.getRecipient().getProfileImageUrl())
                                         .build());
-
                     } else if (Objects.equals(friend.getRecipient().getId(), user.getId())) {
                         allFriends.add(
                                 FriendsDto.builder()
@@ -196,11 +175,10 @@ public class FriendRequestServiceImpl implements FriendRequestService {
                                         .username(friend.getRequester().getUsername())
                                         .profilePicUrl(friend.getRequester().getProfileImageUrl())
                                         .build());
-
                     }
                 });
 
-        log.info("The friends are retrieved");
+        log.info("event=get_friends_done userId={} count={}", user.getId(), allFriends.size());
         return allFriends;
     }
 }

@@ -28,6 +28,7 @@ public class EmailServiceImpl implements EmailService {
 
     @Override
     public void sendPlainText(String to, String subject, String body) {
+        log.debug("event=send_plain_text_email_attempt to={} subject={}", to, subject);
         try {
             SimpleMailMessage message = new SimpleMailMessage();
             if (sender != null && !sender.isBlank()) {
@@ -37,15 +38,16 @@ public class EmailServiceImpl implements EmailService {
             message.setSubject(subject);
             message.setText(body);
             mailSender.send(message);
-            log.debug("Plain text email sent to {}", to);
+            log.info("event=send_plain_text_email_success to={}", to);
         } catch (MailException exception) {
-            log.error("Failed to send plain text email to {}", to, exception);
+            log.error("event=send_plain_text_email_failed to={} error={}", to, exception.getMessage(), exception);
             throw new IllegalStateException("Failed to send email", exception);
         }
     }
 
     @Override
     public void sendHtml(String to, String subject, String templateName, Map<String, String> placeholders) throws MessagingException {
+        log.debug("event=send_html_email_attempt to={} subject={} template={}", to, subject, templateName);
         MimeMessage message = mailSender.createMimeMessage();
         MimeMessageHelper helper = new MimeMessageHelper(message, "UTF-8");
 
@@ -57,7 +59,7 @@ public class EmailServiceImpl implements EmailService {
         helper.setText(renderTemplate(templateName, placeholders), true);
 
         mailSender.send(message);
-        log.debug("HTML email sent to {} using template {}", to, templateName);
+        log.info("event=send_html_email_success to={} template={}", to, templateName);
     }
 
     private String loadTemplate(String templateName) throws IOException {

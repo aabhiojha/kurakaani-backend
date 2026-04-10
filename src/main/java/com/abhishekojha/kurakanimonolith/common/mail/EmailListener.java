@@ -21,37 +21,39 @@ public class EmailListener {
     @EventListener
     public void handleUserRegistered(UserRegisteredEvent event) throws MessagingException {
         User user = event.user();
-        log.debug("The user {} has successfully registered", user.getUsername());
+        log.debug("event=welcome_email_attempt userId={} email={}", user.getId(), user.getEmail());
         emailService.sendHtml(
                 user.getEmail(),
                 "Welcome to the website",
                 "welcome-email.html",
                 Map.of("username", user.getUsername())
         );
+        log.info("event=welcome_email_sent userId={}", user.getId());
     }
 
     @EventListener
     public void handlePasswordReset(PasswordResetEvent event) throws MessagingException {
+        log.debug("event=password_reset_email_attempt email={}", event.email());
         emailService.sendHtml(
                 event.email(),
                 "Password update request OTP",
                 "password-reset.html",
                 Map.of("RESET_CODE", String.valueOf(event.token()))
         );
-        log.debug("Password reset code sent to {}", event.email());
+        log.info("event=password_reset_email_sent email={}", event.email());
     }
 
     @EventListener
     public void handlePasswordResetConfirmation(PasswordResetConfirmEvent event) throws MessagingException {
         User user = event.user();
-
+        log.debug("event=password_reset_confirm_email_attempt userId={} email={}", user.getId(), user.getEmail());
         emailService.sendHtml(
                 user.getEmail(),
                 "Password reset successful",
                 "password-reset-confimation.html",
                 Map.of("username", user.getUsername())
         );
-        log.debug("Password reset notice sent to email {}", user.getEmail());
+        log.info("event=password_reset_confirm_email_sent userId={}", user.getId());
     }
 
 }

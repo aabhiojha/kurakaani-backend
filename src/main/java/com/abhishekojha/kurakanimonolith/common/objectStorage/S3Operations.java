@@ -49,6 +49,7 @@ public class S3Operations {
     public String uploadFile(MultipartFile file, String folder) throws IOException {
         String normalizedFileName = FileNameUtils.normalize(file.getOriginalFilename());
         String key = folder + "/" + UUID.randomUUID() + "_" + normalizedFileName;
+        log.debug("event=s3_upload_attempt bucket={} key={} contentType={} size={}", bucket, key, file.getContentType(), file.getSize());
 
         s3Client.putObject(
                 PutObjectRequest.builder()
@@ -60,18 +61,19 @@ public class S3Operations {
                 RequestBody.fromBytes(file.getBytes())
         );
 
-        log.info("Uploaded file to s3: {}", key);
+        log.info("event=s3_upload_success bucket={} key={}", bucket, key);
         return key;
     }
 
     public void deleteFile(String key) {
+        log.debug("event=s3_delete_attempt bucket={} key={}", bucket, key);
         s3Client.deleteObject(
                 DeleteObjectRequest.builder()
                         .bucket(bucket)
                         .key(key)
                         .build()
         );
-        log.info("Deleted file from s3: {}", key);
+        log.info("event=s3_delete_success bucket={} key={}", bucket, key);
     }
 
     //    Generates a pre-signed URL valid for the given duration.
@@ -86,7 +88,7 @@ public class S3Operations {
                         .build()
         ).url().toString();
 
-        log.debug("Generated presigned URL for key: {}", key);
+        log.debug("event=s3_presigned_url_generated bucket={} key={} expiryMinutes={}", bucket, key, expiry.toMinutes());
         return url;
     }
 

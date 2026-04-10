@@ -51,77 +51,69 @@ public class RoomServiceImpl implements RoomService {
     @Override
     @Transactional
     public List<RoomMemberDto> getAllMembers(Long roomId) {
-        // get the room first
+        log.debug("event=get_all_members_attempt roomId={}", roomId);
         Room room = roomRepository.findById(roomId).orElseThrow(
                 () -> new ResourceNotFoundException("Room not found"));
 
-        return roomMemberMapper.toDto(room.getMembers());
+        List<RoomMemberDto> members = roomMemberMapper.toDto(room.getMembers());
+        log.info("event=get_all_members_done roomId={} count={}", roomId, members.size());
+        return members;
     }
 
     @Override
     @Transactional
     public RoomDto createRoomGroup(CreateRoomRequestDto createRoomRequestDto) {
-        // user
         User user = securityUtils.getRequestUser();
+        log.debug("event=create_group_room_attempt userId={} roomName={}", user.getId(), createRoomRequestDto.getName());
+
         if (user == null) {
             throw new UnauthorizedException("The user not authenticated.");
         }
-        // check if the room of same name exists already.
-        List<Room> roomList = roomRepository.findByCreatedByAndNameIgnoreCase(user.getId(), createRoomRequestDto.getName());
 
+        List<Room> roomList = roomRepository.findByCreatedByAndNameIgnoreCase(user.getId(), createRoomRequestDto.getName());
         if (!roomList.isEmpty()) {
+            log.warn("event=create_group_room_rejected reason=duplicate_name userId={} roomName={}", user.getId(), createRoomRequestDto.getName());
             throw new DuplicateResourceException("The room with name '%s' already exists".formatted(createRoomRequestDto.getName()));
         }
 
-        log.info("The request user is retrieved: {}", user.getEmail());
-
-        // convert the createroomdto into room object
         Room room = new Room();
         room.setName(createRoomRequestDto.getName());
         room.setDescription(createRoomRequestDto.getDescription());
         room.setType(createRoomRequestDto.getType());
         room.setCreatedBy(user);
-//        room.setMembers();
 
         Room savedRoom = roomRepository.save(room);
-        log.info("Room created. id={}, name={}, createdBy={}",
-                savedRoom.getId(), savedRoom.getName(), user.getEmail());
+        log.info("event=group_room_created roomId={} roomName={} userId={}", savedRoom.getId(), savedRoom.getName(), user.getId());
 
-        // gotta create a room member entry of the user as admin
         RoomMember roomMember = RoomMember.builder()
                 .room(savedRoom)
                 .user(user)
                 .roomRole(RoomRole.ADMIN)
                 .joinedAt(LocalDateTime.now()).build();
 
-        RoomMember adminMember = roomMemberRepository.save(roomMember);
-        log.info("User {} is set as admin of room {}", adminMember.getUser(), room);
+        roomMemberRepository.save(roomMember);
+        log.debug("event=room_admin_assigned roomId={} userId={}", savedRoom.getId(), user.getId());
 
-//        now attach the member list to savedRoom
         savedRoom.setMembers(List.of(roomMember));
-
         return roomMapper.toDto(savedRoom);
     }
 
     @Override
     @Transactional
-    public RoomDto createRoomDm(
-            Long userId
-    ) {
+    public RoomDto createRoomDm(Long userId) {
         User user1 = securityUtils.getRequestUser();
+        log.debug("event=create_dm_attempt requesterId={} targetUserId={}", user1.getId(), userId);
 
-//        find the other user
         User user2 = userRepository.findById(userId).orElseThrow(
                 () -> new ResourceNotFoundException("User not found")
         );
 
-        // check if the two users are in some dm already
         Optional<Room> existingDm = roomRepository.findExistingDm(user1.getId(), user2.getId());
         if (existingDm.isPresent()) {
+            log.info("event=create_dm_skipped reason=already_exists roomId={} user1Id={} user2Id={}", existingDm.get().getId(), user1.getId(), user2.getId());
             return roomMapper.toDto(existingDm.get());
         }
 
-        // create a new dm with these two members
         Room room = new Room();
         room.setType(RoomType.DM);
         room.setCreatedBy(user1);
@@ -129,20 +121,13 @@ public class RoomServiceImpl implements RoomService {
                 + Math.max(user1.getId(), user2.getId()));
 
         Room savedRoom = roomRepository.save(room);
+        log.info("event=dm_room_created roomId={} user1Id={} user2Id={}", savedRoom.getId(), user1.getId(), user2.getId());
 
         RoomMember member1 = RoomMember.builder()
-                .room(savedRoom)
-                .user(user1)
-                .roomRole(RoomRole.MEMBER)
-                .joinedAt(LocalDateTime.now())
-                .build();
+                .room(savedRoom).user(user1).roomRole(RoomRole.MEMBER).joinedAt(LocalDateTime.now()).build();
 
         RoomMember member2 = RoomMember.builder()
-                .room(savedRoom)
-                .user(user2)
-                .roomRole(RoomRole.MEMBER)
-                .joinedAt(LocalDateTime.now())
-                .build();
+                .room(savedRoom).user(user2).roomRole(RoomRole.MEMBER).joinedAt(LocalDateTime.now()).build();
 
         List<RoomMember> members = roomMemberRepository.saveAll(List.of(member1, member2));
         savedRoom.setMembers(members);
@@ -165,6 +150,8 @@ public class RoomServiceImpl implements RoomService {
         // get existing DM members
         List<RoomMember> existingDmMembers = roomMemberRepository.findByRoom(room);
 
+        log.debug("event=dm_to_group_attempt roomId={} userId={} newUserCount={}", roomId, user.getId(), userIds.size());
+
         if (room.getType().equals(RoomType.DM) && !userIds.isEmpty()) {
 
             // check if the users actually exist
@@ -182,6 +169,7 @@ public class RoomServiceImpl implements RoomService {
 
             // check if there are any users that do not exist in the db
             if (!missingUserIds.isEmpty()) {
+                log.warn("event=dm_to_group_rejected reason=users_not_found missingIds={}", missingUserIds);
                 throw new ResourceNotFoundException("User with id '%s' not found".formatted(missingUserIds));
             }
 
@@ -203,8 +191,8 @@ public class RoomServiceImpl implements RoomService {
                             .build()
             );
 
-            log.info("New group room created from DM. id={}, name={}, createdBy={}",
-                    savedRoom.getId(), savedRoom.getName(), user.getEmail());
+            log.info("event=group_room_created_from_dm roomId={} sourceDmRoomId={} userId={} memberCount={}",
+                    savedRoom.getId(), roomId, user.getId(), allUsers.size());
 
 //          create a new room member entry for each user
             List<RoomMember> allRoomMembers = allUsers.stream()
@@ -221,6 +209,7 @@ public class RoomServiceImpl implements RoomService {
             savedRoom.setMembers(allRoomMembers);
             return roomMapper.toDto(savedRoom);
         } else {
+            log.warn("event=dm_to_group_rejected reason=not_dm_or_empty_users roomId={} userId={}", roomId, user.getId());
             throw new BadRequestException("Room is not a DM or no users provided.");
         }
 
@@ -229,19 +218,19 @@ public class RoomServiceImpl implements RoomService {
     @Override
     @Transactional
     public RoomDto updateGroup(Long roomId, UpdateRoomDetails updateRoomDetails) {
-        log.info("Incoming request: {}", updateRoomDetails);
+        log.debug("event=update_group_attempt roomId={}", roomId);
         // check if the room exists
         Room room = roomRepository.findById(roomId).orElseThrow(
                 () -> new ResourceNotFoundException("The room with id:" + roomId));
 
         if (updateRoomDetails.getName() != null && !updateRoomDetails.getName().isEmpty()) {
             room.setName(updateRoomDetails.getName());
-            log.debug("The room name is updated to: {}", updateRoomDetails.getName());
+            log.debug("event=update_group_name roomId={} newName={}", roomId, updateRoomDetails.getName());
         }
 
         if (updateRoomDetails.getDescription() != null && !updateRoomDetails.getDescription().isEmpty()) {
             room.setDescription(updateRoomDetails.getDescription());
-            log.debug("The description is updated to: {}", updateRoomDetails.getDescription());
+            log.debug("event=update_group_description roomId={}", roomId);
         }
 
         if (updateRoomDetails.getUserId() != null) {
@@ -250,6 +239,7 @@ public class RoomServiceImpl implements RoomService {
                     .userIds(userId).build(), roomId
             );
         }
+        log.info("event=update_group_success roomId={}", roomId);
         return roomMapper.toDto(room);
     }
 
@@ -257,6 +247,7 @@ public class RoomServiceImpl implements RoomService {
     @Transactional(readOnly = true)
     public List<RoomListDto> getRooms() {
         User user = securityUtils.getRequestUser();
+        log.debug("event=get_rooms_attempt userId={}", user.getId());
         List<RoomListDto> rooms = roomRepository.findRoomsForUser(user.getId());
 
         List<Long> roomIds = rooms.stream()
@@ -279,11 +270,13 @@ public class RoomServiceImpl implements RoomService {
                     room.setRecentMessage(recentMessage);
                 });
 
+        log.info("event=get_rooms_done userId={} count={}", user.getId(), rooms.size());
         return rooms;
     }
 
     @Override
     public List<RoomMessageDto> getAllMessagesForRoom(Long roomId) {
+        log.debug("event=get_messages_for_room_attempt roomId={}", roomId);
         // ill have to write a custom repo method for getting data in roommessagedto
         return roomRepository.getMessagesForRoom(roomId).stream()
                 .peek(message -> {
@@ -301,18 +294,20 @@ public class RoomServiceImpl implements RoomService {
     @Transactional
     public void addUserToRoomGroup(AddUsersToRoomDto request, Long roomId) {
         List<Long> userIds = request.getUserIds();
+        log.debug("event=add_users_to_group_attempt roomId={} userCount={}", roomId, userIds.size());
 
         // check if the room exists
         Room room = roomRepository.findById(roomId).orElseThrow(
                 () -> new ResourceNotFoundException("Room not found"));
 
         if (userIds.isEmpty()) {
+            log.warn("event=add_users_to_group_rejected reason=empty_user_list roomId={}", roomId);
             throw new BadRequestException("The list of users is empty.");
         }
 
         // check if the users actually exist
         List<User> usersList = userRepository.findAllById(userIds);
-        log.debug("The users from the list are fetched");
+        log.debug("event=add_users_to_group_users_fetched roomId={} fetchedCount={}", roomId, usersList.size());
 
         // all the user ids from db
         List<Long> fetchedUserIds = usersList.stream()
@@ -326,6 +321,7 @@ public class RoomServiceImpl implements RoomService {
 
         // check if there are any users that do not exist in the db
         if (!missingUserIds.isEmpty()) {
+            log.warn("event=add_users_to_group_rejected reason=users_not_found roomId={} missingIds={}", roomId, missingUserIds);
             throw new ResourceNotFoundException("User with id '%s' not found".formatted(missingUserIds));
         }
 
@@ -337,19 +333,20 @@ public class RoomServiceImpl implements RoomService {
                         .joinedAt(LocalDateTime.now())
                         .build())
                 .toList();
-        log.debug("Room members for the room are created");
+        log.debug("event=add_users_to_group_members_built roomId={} count={}", roomId, newMembers.size());
 
         List<RoomMember> roomMembers = roomMemberRepository.saveAll(newMembers);
-        log.info("The room members {} are added in the room", roomMembers);
+        log.info("event=add_users_to_group_success roomId={} addedCount={}", roomId, roomMembers.size());
     }
 
     @Override
     @Transactional
     public void removeUserFromRoom(RemoveMembersDto request, Long roomId) {
         List<Long> deleteIds = request.getMembersId();
+        log.debug("event=remove_users_from_room_attempt roomId={} memberCount={}", roomId, deleteIds.size());
         // check if the users actually exist
         roomRepository.deleteAllById(deleteIds);
-
+        log.info("event=remove_users_from_room_success roomId={} removedCount={}", roomId, deleteIds.size());
     }
 
     @Override
@@ -361,6 +358,7 @@ public class RoomServiceImpl implements RoomService {
     @Override
     @Transactional
     public List<FriendsDto> getAllAddableFriends(Long roomId) {
+        log.debug("event=get_addable_friends_attempt roomId={}", roomId);
         Room room = roomRepository.findById(roomId)
                 .orElseThrow(() -> new ResourceNotFoundException("Room not found, id: " + roomId));
 
@@ -374,8 +372,10 @@ public class RoomServiceImpl implements RoomService {
                 .collect(Collectors.toSet());
 
         // return friends who are NOT already in the room
-        return friends.stream()
+        List<FriendsDto> addableFriends = friends.stream()
                 .filter(friend -> !memberUserIds.contains(friend.getUserId()))
                 .toList();
+        log.info("event=get_addable_friends_done roomId={} count={}", roomId, addableFriends.size());
+        return addableFriends;
     }
 }

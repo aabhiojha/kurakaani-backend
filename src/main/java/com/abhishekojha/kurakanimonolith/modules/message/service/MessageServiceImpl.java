@@ -17,6 +17,7 @@ import com.abhishekojha.kurakanimonolith.modules.room.repository.RoomRepository;
 import com.abhishekojha.kurakanimonolith.modules.room_member.repository.RoomMemberRepository;
 import com.abhishekojha.kurakanimonolith.modules.user.model.User;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +28,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class MessageServiceImpl implements MessageService {
 
     private final RoomRepository roomRepository;
@@ -40,23 +42,26 @@ public class MessageServiceImpl implements MessageService {
     @Override
     @Transactional
     public void sendMessageToRoom(Long roomId, MessageRequest request, Principal principal) {
-            if (request.getContent() == null || request.getContent().isBlank()) {
-                throw new BadRequestException("Message content is required.");
-            }
+        log.debug("event=send_text_message_attempt roomId={} user={}", roomId, principal.getName());
 
-            Room room = getAuthorizedRoom(roomId, principal);
-            User sender = getSender(principal);
+        if (request.getContent() == null || request.getContent().isBlank()) {
+            log.warn("event=send_text_message_rejected reason=empty_content roomId={} user={}", roomId, principal.getName());
+            throw new BadRequestException("Message content is required.");
+        }
 
-            Message savedMessage = saveMessage(
-                    room,
-                    sender,
-                    request.getContent(),
-                    MessageType.TEXT,
-                    null,
-                    null,
-                    null
-            );
+        Room room = getAuthorizedRoom(roomId, principal);
+        User sender = getSender(principal);
 
+        Message savedMessage = saveMessage(
+                room,
+                sender,
+                request.getContent(),
+                MessageType.TEXT,
+                null,
+                null,
+                null
+        );
+        log.info("event=message_saved messageId={} roomId={} userId={}", savedMessage.getId(), savedMessage.getRoom().getId(), savedMessage.getSender().getId());
 
         if (room.getType() == RoomType.DM) {
             Long senderId = sender.getId();
@@ -68,34 +73,34 @@ public class MessageServiceImpl implements MessageService {
 
             var dto = messageMapper.toDto(savedMessage);
 
-            // Send to receiver
-            redisTemplate.convertAndSend(
-                    "chat.dm.user." + receiverId,
-                    dto
-            );
-
-            // Send to sender (so sender also sees message in real-time)
-            redisTemplate.convertAndSend(
-                    "chat.dm.user." + senderId,
-                    dto
-            );
+            String receiverChannel = "chat.dm.user." + receiverId;
+            String senderChannel = "chat.dm.user." + senderId;
+            redisTemplate.convertAndSend(receiverChannel, dto);
+            redisTemplate.convertAndSend(senderChannel, dto);
+            log.info("event=dm_message_published messageId={} senderChannel={} receiverChannel={}", savedMessage.getId(), senderChannel, receiverChannel);
             return;
         }
-        redisTemplate.convertAndSend(
-                    "chat.group." + roomId,
-                    messageMapper.toDto(savedMessage)
-        );
 
+        var dto = messageMapper.toDto(savedMessage);
+        String groupChannel = "chat.group." + roomId;
+        redisTemplate.convertAndSend(groupChannel, dto);
+        log.info("event=group_message_published messageId={} channel={} userId={}", savedMessage.getId(), groupChannel, dto.getSenderId());
     }
 
     @Override
     @Transactional
     public MessageDto sendMediaMessageToRoom(Long roomId, MultipartFile file, String content, Principal principal) {
+        log.debug("event=send_media_message_attempt roomId={} user={} contentType={} fileSize={}",
+                roomId, principal.getName(), file != null ? file.getContentType() : "null", file != null ? file.getSize() : 0);
+
         if (file == null || file.isEmpty()) {
+            log.warn("event=send_media_message_rejected reason=missing_file roomId={} user={}", roomId, principal.getName());
             throw new BadRequestException("Image or video file is required.");
         }
 
         MessageType messageType = resolveMessageType(file.getContentType());
+        log.debug("event=media_type_resolved roomId={} messageType={}", roomId, messageType);
+
         Room room = getAuthorizedRoom(roomId, principal);
         User sender = getSender(principal);
 
@@ -108,14 +113,18 @@ public class MessageServiceImpl implements MessageService {
         String mediaKey;
         try {
             mediaKey = s3Operations.uploadFile(file, folder);
+            log.info("event=media_uploaded roomId={} userId={} mediaKey={}", roomId, sender.getId(), mediaKey);
         } catch (Exception e) {
+            log.error("event=media_upload_failed roomId={} userId={} folder={} error={}", roomId, sender.getId(), folder, e.getMessage(), e);
             throw new RuntimeException("Failed to upload media file", e);
         }
 
         Message savedMessage;
         try {
             savedMessage = saveMessage(room, sender, content, messageType, mediaKey, file.getContentType(), file.getOriginalFilename());
+            log.info("event=media_message_saved messageId={} roomId={} userId={} mediaKey={}", savedMessage.getId(), roomId, sender.getId(), mediaKey);
         } catch (RuntimeException e) {
+            log.error("event=media_message_save_failed roomId={} userId={} mediaKey={} error={} — rolling back upload", roomId, sender.getId(), mediaKey, e.getMessage());
             s3Operations.deleteFile(mediaKey);
             throw e;
         }
@@ -130,39 +139,39 @@ public class MessageServiceImpl implements MessageService {
                     .findFirst()
                     .orElseThrow();
 
-            // Send to receiver
-            redisTemplate.convertAndSend(
-                    "chat.dm.user." + receiverId,
-                    messageDto
-            );
-
-            // Send to sender (so sender also sees message in real-time)
-            redisTemplate.convertAndSend(
-                    "chat.dm.user." + senderId,
-                    messageDto
-            );
+            redisTemplate.convertAndSend("chat.dm.user." + receiverId, messageDto);
+            redisTemplate.convertAndSend("chat.dm.user." + senderId, messageDto);
+            log.info("event=dm_media_message_published messageId={} senderId={} receiverId={}", savedMessage.getId(), senderId, receiverId);
         } else {
-            redisTemplate.convertAndSend("chat.group." + roomId, messageDto);
+            String groupChannel = "chat.group." + roomId;
+            redisTemplate.convertAndSend(groupChannel, messageDto);
+            log.info("event=group_media_message_published messageId={} channel={} userId={}", savedMessage.getId(), groupChannel, sender.getId());
         }
         return messageDto;
     }
 
     @Override
     public List<MessageDto> searchMessagesInRoom(Long roomId, String searchText, Principal principal) {
+        log.debug("event=search_messages_in_room roomId={} user={} query=\"{}\"", roomId, principal.getName(), searchText);
         getAuthorizedRoom(roomId, principal);
-        return messageRepository.fullTextSearchByRoom(roomId, searchText)
+        List<MessageDto> results = messageRepository.fullTextSearchByRoom(roomId, searchText)
                 .stream()
                 .map(messageMapper::toDto)
                 .toList();
+        log.info("event=search_messages_in_room_done roomId={} user={} resultCount={}", roomId, principal.getName(), results.size());
+        return results;
     }
 
     @Override
     public List<MessageDto> searchMessagesAcrossRooms(Principal principal, String searchText) {
         User user = getSender(principal);
-        return messageRepository.fullTextSearchAcrossRooms(searchText, user.getId())
+        log.debug("event=search_messages_across_rooms userId={} query=\"{}\"", user.getId(), searchText);
+        List<MessageDto> results = messageRepository.fullTextSearchAcrossRooms(searchText, user.getId())
                 .stream()
                 .map(messageMapper::toDto)
                 .toList();
+        log.info("event=search_messages_across_rooms_done userId={} resultCount={}", user.getId(), results.size());
+        return results;
     }
 
 
@@ -188,6 +197,7 @@ public class MessageServiceImpl implements MessageService {
         User sender = getSender(principal);
         boolean isMember = roomMemberRepository.existsByRoomIdAndUserId(roomId, sender.getId());
         if (!isMember) {
+            log.warn("event=unauthorized_room_access roomId={} userId={}", roomId, sender.getId());
             throw new UnauthorizedException("You are not a member of this room");
         }
         return room;
