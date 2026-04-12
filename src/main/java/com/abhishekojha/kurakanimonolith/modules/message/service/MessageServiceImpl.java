@@ -61,20 +61,21 @@ public class MessageServiceImpl implements MessageService {
                 null,
                 null
         );
-        log.info("event=message_saved messageId={} roomId={} userId={}", savedMessage.getId(), savedMessage.getRoom().getId(), savedMessage.getSender().getId());
+        log.info("event=message_saved message Id={} roomId={} userId={}", savedMessage.getId(), savedMessage.getRoom().getId(), savedMessage.getSender().getId());
 
         if (room.getType() == RoomType.DM) {
-            Long senderId = sender.getId();
-            Long receiverId = room.getMembers().stream()
-                    .map(member -> member.getUser().getId())
-                    .filter(id -> !id.equals(senderId))
+            String senderUsername = sender.getUsername();
+            String receiverUsername = room.getMembers().stream()
+                    .map(member -> member.getUser())
+                    .filter(user -> !user.getId().equals(sender.getId()))
+                    .map(User::getUsername)
                     .findFirst()
                     .orElseThrow();
 
             var dto = messageMapper.toDto(savedMessage);
 
-            String receiverChannel = "chat.dm.user." + receiverId;
-            String senderChannel = "chat.dm.user." + senderId;
+            String receiverChannel = "chat.dm.user." + receiverUsername;
+            String senderChannel = "chat.dm.user." + senderUsername;
             redisTemplate.convertAndSend(receiverChannel, dto);
             redisTemplate.convertAndSend(senderChannel, dto);
             log.info("event=dm_message_published messageId={} senderChannel={} receiverChannel={}", savedMessage.getId(), senderChannel, receiverChannel);
@@ -132,16 +133,17 @@ public class MessageServiceImpl implements MessageService {
         MessageDto messageDto = messageMapper.toDto(savedMessage);
 
         if (room.getType() == RoomType.DM) {
-            Long senderId = sender.getId();
-            Long receiverId = room.getMembers().stream()
-                    .map(member -> member.getUser().getId())
-                    .filter(id -> !id.equals(senderId))
+            String senderUsername = sender.getUsername();
+            String receiverUsername = room.getMembers().stream()
+                    .map(member -> member.getUser())
+                    .filter(user -> !user.getId().equals(sender.getId()))
+                    .map(User::getUsername)
                     .findFirst()
                     .orElseThrow();
 
-            redisTemplate.convertAndSend("chat.dm.user." + receiverId, messageDto);
-            redisTemplate.convertAndSend("chat.dm.user." + senderId, messageDto);
-            log.info("event=dm_media_message_published messageId={} senderId={} receiverId={}", savedMessage.getId(), senderId, receiverId);
+            redisTemplate.convertAndSend("chat.dm.user." + receiverUsername, messageDto);
+            redisTemplate.convertAndSend("chat.dm.user." + senderUsername, messageDto);
+            log.info("event=dm_media_message_published messageId={} senderUsername={} receiverUsername={}", savedMessage.getId(), senderUsername, receiverUsername);
         } else {
             String groupChannel = "chat.group." + roomId;
             redisTemplate.convertAndSend(groupChannel, messageDto);
