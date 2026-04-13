@@ -62,6 +62,6 @@ storage:
 
 app:
   jwt:
-    secret: ${JWT_SECRET:TOYLwSbD3s8U0SmuFuVSBWJDa0dlyoXbjSDmDgEXnEN}
+    secret: ${JWT_SECRET:VGhpc0lzQVN1ZmZpY2llbnRseUxvbmdTZWNyZXRLZXlGb3JIUzI1Ng==}
     expiration-seconds: ${JWT_EXPIRATION_SECONDS:864000}
 
